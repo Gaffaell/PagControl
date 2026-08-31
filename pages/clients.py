@@ -137,6 +137,12 @@ edited_df = st.data_editor(
             options=["High", "Medium", "Low"],
             required=True,
         ),
+        "Tipo de plano": st.column_config.SelectboxColumn(
+            "Tipo de plano",
+            help="Tipo de plano",
+            options=["Básico", "Premium"],
+            required=True,
+        ),
     },
     # Disable editing the ID and Date Submitted columns.
     disabled=["ID", "Date Submitted"],
