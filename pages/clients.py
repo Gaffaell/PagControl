@@ -7,12 +7,12 @@ import pandas as pd
 import streamlit as st
 
 # Show app title and description.
-st.set_page_config(page_title="Clients", page_icon="👥")
-st.title("👥 Clients")
+st.set_page_config(page_title="Aluno", page_icon="👥")
+st.title("👥 Alunos")
 st.write(
     """
     Here you can see, edit any information 
-    about your clients and add a new client
+    about your aluno and add a new alunos 
     """
 )
 
@@ -65,30 +65,30 @@ if "df" not in st.session_state:
 
 
 # Show a section to add a new ticket.
-st.header("Add a new client")
+st.header("Adicionar um novo aluno")
 
 # We're adding tickets via an `st.form` and some input widgets. If widgets are used
 # in a form, the app will only rerun once the submit button is pressed.
-with st.form("add_client_form"):
-    nome = st.text_area("Nome completo", placeholder="EX: Rodrigo Costa Silva")
-    email = st.text_area("Email", placeholder="EX: rodrigo.silva123@pagcontrol.com")
-    telefone = st.text_area("Telefone", placeholder="EX: (11) 91234-5678")
-    cep = st.text_area("CEP", placeholder="EX: 12342-112")
-    endereco = st.text_area("Endereço", placeholder="EX: Rua das águias")
-    numero = st.text_area("Número da casa", placeholder="EX: 123")
-    complemento = st.text_area("Complemento", placeholder="EX: Casa 1")
-    tipo_de_plano = st.selectbox("Tipo de plano", ["Básico", "Premium"])
+with st.form("add_aluno_form"):
+    nome = st.text_input("Nome completo", placeholder="EX: Rodrigo Costa Silva")
+    email = st.text_input("Email", placeholder="EX: rodrigo.silva123@pagcontrol.com")
+    telefone = st.text_input("Telefone", placeholder="EX: (11) 91234-5678")
+    cep = st.text_input("CEP", placeholder="EX: 12342-112")
+    endereco = st.text_input("Endereço", placeholder="EX: Rua das águias")
+    numero = st.text_input("Número da casa", placeholder="EX: 123")
+    complemento = st.text_input("Complemento", placeholder="EX: Casa 1")
+    valor_mensalidade = st.number_input("Valor da mensalidade", placeholder="EX: 125,90") 
     submitted = st.form_submit_button("Submit")
 
 if submitted:
     # Make a dataframe for the new ticket and append it to the dataframe in session
     # state.
-    id_cliente = int(max(st.session_state.df.ID).split("-")[1])
+    id_aluno = int(max(st.session_state.df.ID).split("-")[1])
     today = datetime.datetime.now().strftime("%m-%d-%Y")
     df_new = pd.DataFrame(
         [
             {
-                "ID": f"{id_cliente+1}",
+                "ID": f"{id_aluno+1}",
                 "Nome": nome,
                 "Email": email,
                 "Telefone": telefone,
@@ -96,7 +96,7 @@ if submitted:
                 "Endereço": endereco,
                 "Numero": numero,
                 "Complemento": complemento,
-                "Tipo de plano": tipo_de_plano,
+                "Valor da mensalidade": valor_mensalidade,
                 "Status": "Open",
                 "Date Submitted": today,
             }
@@ -104,13 +104,13 @@ if submitted:
     )
 
     # Show a little success message.
-    st.write("Cliente cadastrado com sucesso! aqui está as informaçoes cadastradas:")
+    st.write("Aluno cadastrado com sucesso! aqui está as informaçoes cadastradas:")
     st.dataframe(df_new, use_container_width=True, hide_index=True)
     st.session_state.df = pd.concat([df_new, st.session_state.df], axis=0)
 
 # Show section to view and edit existing tickets in a table.
-st.header("Clientes cadastrados")
-st.write(f"Número de clientes cadastradas: `{len(st.session_state.df)}`")
+st.header("Alunos cadastrados")
+st.write(f"Número de alunos cadastradas: `{len(st.session_state.df)}`")
 
 st.info(
     "You can edit the tickets by double clicking on a cell. Note how the plots below "
@@ -143,4 +143,4 @@ edited_df = st.data_editor(
 )
 
 
-st.set_page_config(page_title="Cliets manager", layout="centered", page_icon="👥")
+st.set_page_config(page_title="Alunos manager", layout="centered", page_icon="👥")
