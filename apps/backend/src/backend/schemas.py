@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import FormaPagamento, StatusCobranca
+from .models import FormaPagamento, StatusCobranca
 
 # Schemas Pydantic: validam o que entra/sai da API, separados dos modelos
 # do banco (app/models.py) para não expor campos internos sem querer.

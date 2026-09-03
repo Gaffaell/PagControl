@@ -3,9 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
-from app.database import get_db
-from app.init_db import init_db
+from . import crud, models, schemas
+from .database import get_db
+from .init_db import init_db
 
 
 @asynccontextmanager
