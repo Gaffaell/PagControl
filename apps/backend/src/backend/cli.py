@@ -1,12 +1,13 @@
-from app import models
-from app.database import SessionLocal
-from app.init_db import init_db
+from . import models
+from .database import SessionLocal
+from .init_db import init_db
 
 # Ponto de entrada rápido para checar o estado do banco sem subir a API
-# (ex.: rodar `python main.py` só pra ver quantos alunos/cobranças existem).
+# (ex.: rodar `uv run --package backend backend` só pra ver quantos alunos/cobranças existem).
 
 
 def resumo() -> None:
+    init_db()
     db = SessionLocal()
     try:
         total_alunos = db.query(models.Aluno).count()
@@ -26,5 +27,4 @@ def resumo() -> None:
 
 
 if __name__ == "__main__":
-    init_db()
     resumo()

@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import models, schemas
+from . import models, schemas
 
 # Regras de negócio do sistema de cobrança, separadas das rotas (app/api.py)
 # para poder testar/reutilizar sem depender do FastAPI.

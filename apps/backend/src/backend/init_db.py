@@ -1,10 +1,10 @@
-from app import models
-from app.database import Base, SessionLocal, engine
+from . import models
+from .database import Base, SessionLocal, engine
 
 
 def init_db() -> None:
     """Cria as tabelas se não existirem e semeia a régua padrão.
-    Idempotente: seguro chamar toda vez que a API sobe (ver app/api.py lifespan)."""
+    Idempotente: seguro chamar toda vez que a API sobe (ver api.py lifespan)."""
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
