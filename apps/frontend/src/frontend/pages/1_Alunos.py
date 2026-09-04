@@ -1,5 +1,6 @@
 import datetime
 
+from frontend.api.cliente import listar_alunos
 import pandas as pd
 import streamlit as st
 
@@ -7,26 +8,11 @@ st.set_page_config(page_title="Gestão de Alunos - PagControl", page_icon="👥"
 st.title("👥 Gestão de Alunos")
 st.write("Cadastre, visualize e edite os alunos matriculados na academia.")
 
+alunos_cadastrados = listar_alunos(False)
+
 # Inicializa DataFrame de alunos em session_state
 if "alunos_df" not in st.session_state:
-    st.session_state.alunos_df = pd.DataFrame(
-        [
-            {
-                "ID": 1,
-                "Nome": "Rodrigo Costa Silva",
-                "Email": "rodrigo.silva@pagcontrol.com",
-                "Telefone": "(11) 91234-5678",
-                "CEP": "01310-100",
-                "Endereço": "Av. Paulista",
-                "Número": "1000",
-                "Complemento": "Apto 101",
-                "Valor Mensalidade (R$)": 125.90,
-                "Dia Vencimento": 10,
-                "Status": "Ativo",
-                "Data Matrícula": datetime.date.today().strftime("%d/%m/%Y"),
-            }
-        ]
-    )
+    st.session_state.alunos_df = pd.DataFrame(alunos_cadastrados)
 
 st.header("Adicionar um novo aluno")
 
