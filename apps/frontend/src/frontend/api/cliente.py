@@ -12,3 +12,13 @@ def listar_alunos(apenas_ativos=False):
     response.raise_for_status()
 
     return response.json()
+
+def criar_aluno(dados):
+    response = requests.post(
+        f"{BASE_URL}/alunos",
+        json=dados
+    )
+
+    response.raise_for_status()
+
+    return response.json()

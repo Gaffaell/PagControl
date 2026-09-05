@@ -13,6 +13,7 @@ class AlunoCreate(BaseModel):
     valor_mensalidade: float
     dia_vencimento: int
     modalidade: str | None = None
+    ativo: bool = True
 
 
 class AlunoUpdate(BaseModel):
@@ -20,7 +21,7 @@ class AlunoUpdate(BaseModel):
     valor_mensalidade: float | None = None
     dia_vencimento: int | None = None
     modalidade: str | None = None
-    ativo: bool | None = None
+    ativo: bool = True
 
 
 class AlunoOut(BaseModel):
@@ -33,7 +34,6 @@ class AlunoOut(BaseModel):
     valor_mensalidade: float
     dia_vencimento: int
     modalidade: str | None
-    data_matricula: date
     ativo: bool
     criado_em: datetime
 

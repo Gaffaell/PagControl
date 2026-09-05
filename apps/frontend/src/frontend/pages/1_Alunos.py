@@ -1,6 +1,6 @@
 import datetime
 
-from frontend.api.cliente import listar_alunos
+from frontend.api.cliente import criar_aluno, listar_alunos
 import pandas as pd
 import streamlit as st
 
@@ -8,10 +8,9 @@ st.set_page_config(page_title="Gestão de Alunos - PagControl", page_icon="👥"
 st.title("👥 Gestão de Alunos")
 st.write("Cadastre, visualize e edite os alunos matriculados na academia.")
 
-alunos_cadastrados = listar_alunos(False)
-
 # Inicializa DataFrame de alunos em session_state
 if "alunos_df" not in st.session_state:
+    alunos_cadastrados = listar_alunos(False)
     st.session_state.alunos_df = pd.DataFrame(alunos_cadastrados)
 
 st.header("Adicionar um novo aluno")
@@ -37,8 +36,8 @@ with st.form("add_aluno_form"):
     submitted = st.form_submit_button("Cadastrar Aluno")
 
 if submitted:
-    if not nome:
-        st.error("Por favor, preencha o nome do aluno.")
+    if not nome or not valor_mensalidade or not dia_vencimento:
+        st.error("Por favor, preencha todos os campos obrigatórios.")
     else:
         novo_id = len(st.session_state.alunos_df) + 1
         hoje = datetime.date.today().strftime("%d/%m/%Y")
@@ -61,6 +60,20 @@ if submitted:
             ]
         )
 
+        # Chama a função criar_aluno da API para enviar os dados ao backend
+        criar_aluno(
+            {
+                "nome": nome,
+                "email": email or None,
+                "telefone": telefone or None,
+                "cep": cep or None,
+                "endereco": endereco or None,
+                "numero": numero or None,
+                "complemento": complemento or None,
+                "valor_mensalidade": float(valor_mensalidade),
+                "dia_vencimento": int(dia_vencimento),
+            }
+        )
         st.session_state.alunos_df = pd.concat([st.session_state.alunos_df, novo_aluno], ignore_index=True)
         st.success(f"Aluno **{nome}** cadastrado com sucesso!")
         st.dataframe(novo_aluno, use_container_width=True, hide_index=True)
