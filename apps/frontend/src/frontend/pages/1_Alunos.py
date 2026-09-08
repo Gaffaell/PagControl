@@ -44,18 +44,18 @@ if submitted:
         novo_aluno = pd.DataFrame(
             [
                 {
-                    "ID": novo_id,
-                    "Nome": nome,
-                    "Email": email,
-                    "Telefone": telefone,
-                    "CEP": cep,
-                    "Endereço": endereco,
-                    "Número": numero,
-                    "Complemento": complemento,
-                    "Valor Mensalidade (R$)": valor_mensalidade,
-                    "Dia Vencimento": int(dia_vencimento),
-                    "Status": "Ativo",
-                    "Data Matrícula": hoje,
+                    "id": novo_id,
+                    "nome": nome,
+                    "email": email,
+                    "telefone": telefone,
+                    "cep": cep,
+                    "endereço": endereco,
+                    "número": numero,
+                    "complemento": complemento,
+                    "valor_mensalidade": valor_mensalidade,
+                    "dia_vencimento": int(dia_vencimento),
+                    "ativo": True,
+                    "data_matrícula": hoje,
                 }
             ]
         )
@@ -72,6 +72,7 @@ if submitted:
                 "complemento": complemento or None,
                 "valor_mensalidade": float(valor_mensalidade),
                 "dia_vencimento": int(dia_vencimento),
+                "Status": "Ativo",
             }
         )
         st.session_state.alunos_df = pd.concat([st.session_state.alunos_df, novo_aluno], ignore_index=True)
