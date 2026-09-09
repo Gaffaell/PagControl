@@ -25,7 +25,12 @@ elif DATABASE_URL.startswith("postgresql://"):
 # check_same_thread só é necessário/válido para SQLite (permite usar a mesma
 # conexão em threads diferentes, como o FastAPI faz por padrão).
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# pool_pre_ping: testa a conexão antes de cada uso e descarta/reconecta se
+# estiver morta. Necessário porque a Neon (free tier) suspende o compute após
+# alguns minutos ocioso e derruba conexões TCP abertas — sem isso, a primeira
+# query após um período parado falha com "SSL connection has been closed
+# unexpectedly" em vez de simplesmente reconectar.
+engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
