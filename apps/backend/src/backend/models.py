@@ -11,7 +11,7 @@ from .database import Base
 # seção 2.1, para o desenho conceitual completo.
 
 
-class StatusCobranca(str, enum.Enum):
+class StatusCobranca(enum.StrEnum):
     """Ciclo de vida de uma cobrança, avançado pela régua (crud.atualizar_status_atrasos)."""
 
     PENDENTE = "pendente"
@@ -20,7 +20,7 @@ class StatusCobranca(str, enum.Enum):
     INADIMPLENTE = "inadimplente"
 
 
-class FormaPagamento(str, enum.Enum):
+class FormaPagamento(enum.StrEnum):
     """Os dois caminhos de integração financeira previstos na proposta (seção 6)."""
 
     PIX = "pix"
@@ -40,7 +40,9 @@ class Aluno(Base):
     # módulo de Big Data (segmentação de risco por modalidade).
     modalidade: Mapped[str | None] = mapped_column(String(60), nullable=True)
     # Usada depois pela curva de vintage (risco de inadimplência por turma de matrícula).
-    data_matricula: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
+    data_matricula: Mapped[date] = mapped_column(
+        Date, nullable=False, default=date.today
+    )
     ativo: Mapped[bool] = mapped_column(default=True)
     # Dados de contato/endereço: opcionais, fora do cadastro mínimo da
     # proposta. Coletados apenas pela tela de Admin, não pelo cadastro
