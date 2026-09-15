@@ -1,42 +1,57 @@
 import streamlit as st
 
+from frontend.ui import apply_theme, feature_card, page_header, section_title, sidebar_brand
+
 st.set_page_config(
     page_title="PagControl - Sistema de Cobrança",
     page_icon="💳",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-st.title("💳 PagControl")
-st.subheader("Sistema de Cobrança e Gestão Recorrente para Academias")
+apply_theme()
+sidebar_brand()
 
-st.markdown(
-    """
-    Bem-vindo ao **PagControl**. Este painel permite gerenciar matrículas de alunos, 
-    acompanhar faturas e controlar a régua de cobrança automática contra inadimplência.
-    """
+page_header(
+    "Visão geral",
+    "Gestão financeira simples e eficiente",
+    (
+        "Centralize matrículas, acompanhe cobranças recorrentes e tenha uma visão "
+        "clara da operação financeira da academia."
+    ),
 )
 
-col1, col2 = st.columns(2)
+section_title("Acesso rápido")
+col1, col2 = st.columns(2, gap="large")
 
 with col1:
-    st.info(
-        """
-        ### 👥 Gestão de Alunos
-        - Cadastre novos alunos com dia de vencimento e valor de mensalidade.
-        - Consulte e gerencie os alunos ativos na academia.
-        - Acesse pelo menu lateral em **Alunos**.
-        """
+    feature_card(
+        "01",
+        "Gestão de alunos",
+        (
+            "Cadastre alunos, organize mensalidades e consulte as informações "
+            "essenciais de cada matrícula em um único lugar."
+        ),
     )
 
 with col2:
-    st.success(
-        """
-        ### 📊 Métricas e Inadimplência
-        - Visualize faturas pendentes, pagas e atrasadas.
-        - Acompanhe a curva de inadimplência e projeção de receita.
-        - Acesse pelo menu lateral em **Metricas**.
-        """
+    feature_card(
+        "02",
+        "Métricas financeiras",
+        (
+            "Acompanhe receita prevista, situação das faturas e indicadores de "
+            "inadimplência com leitura rápida."
+        ),
     )
 
-st.divider()
-st.caption("PagControl • Desenvolvido com FastAPI + Streamlit • Gerenciado com uv")
+section_title("Como começar")
+step1, step2, step3 = st.columns(3, gap="medium")
+with step1:
+    feature_card("1", "Cadastre", "Inclua os dados do aluno e defina mensalidade e vencimento.")
+with step2:
+    feature_card("2", "Acompanhe", "Consulte a base cadastrada e mantenha as informações organizadas.")
+with step3:
+    feature_card("3", "Analise", "Use o painel para visualizar os principais indicadores financeiros.")
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.caption("PagControl · FastAPI + Streamlit · Ambiente de gestão recorrente")
