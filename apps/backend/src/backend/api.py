@@ -38,7 +38,9 @@ def obter_aluno(aluno_id: int, db: Session = Depends(get_db)):
 
 
 @app.patch("/alunos/{aluno_id}", response_model=schemas.AlunoOut)
-def atualizar_aluno(aluno_id: int, dados: schemas.AlunoUpdate, db: Session = Depends(get_db)):
+def atualizar_aluno(
+    aluno_id: int, dados: schemas.AlunoUpdate, db: Session = Depends(get_db)
+):
     aluno = crud.obter_aluno(db, aluno_id)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
@@ -55,7 +57,9 @@ def desativar_aluno(aluno_id: int, db: Session = Depends(get_db)):
     crud.desativar_aluno(db, aluno)
 
 
-@app.post("/alunos/{aluno_id}/cobrancas", response_model=schemas.CobrancaOut, status_code=201)
+@app.post(
+    "/alunos/{aluno_id}/cobrancas", response_model=schemas.CobrancaOut, status_code=201
+)
 def gerar_cobranca(aluno_id: int, db: Session = Depends(get_db)):
     aluno = crud.obter_aluno(db, aluno_id)
     if not aluno:

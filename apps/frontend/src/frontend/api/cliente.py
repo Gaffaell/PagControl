@@ -5,7 +5,6 @@ from typing import Any
 
 import httpx
 
-
 BASE_URL = os.getenv("PAGCONTROL_API_URL", "http://localhost:8000").rstrip("/")
 REQUEST_TIMEOUT = 10
 
