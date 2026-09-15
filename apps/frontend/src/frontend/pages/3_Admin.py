@@ -87,6 +87,7 @@ else:
         except APIError as exc:
             st.error(str(exc))
         else:
+            listar_alunos.clear()
             st.success(
                 f"Dados de contato de **{aluno['nome']}** atualizados com sucesso!"
             )
@@ -127,4 +128,5 @@ if salvar_regua:
     except APIError as exc:
         st.error(str(exc))
     else:
+        obter_configuracao_regua.clear()
         st.success("Régua de cobrança atualizada com sucesso!")
