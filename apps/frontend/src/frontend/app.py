@@ -69,5 +69,5 @@ with step3:
         "Use o painel para visualizar os principais indicadores financeiros.",
     )
 
-st.markdown("<br>", unsafe_allow_html=True)
+st.html("<br>")
 st.caption("PagControl · FastAPI + Streamlit · Ambiente de gestão recorrente")
