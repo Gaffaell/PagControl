@@ -11,7 +11,7 @@ import streamlit as st
 
 def apply_theme() -> None:
     """Aplica a identidade visual corporativa em todas as páginas."""
-    st.markdown(
+    st.html(
         """
         <style>
         :root {
@@ -293,13 +293,12 @@ def apply_theme() -> None:
         }
         </style>
         """,
-        unsafe_allow_html=True,
     )
 
 
 def sidebar_brand() -> None:
     """Exibe a assinatura do produto no topo da navegação lateral."""
-    st.sidebar.markdown(
+    st.sidebar.html(
         """
         <div class="pc-sidebar-brand">
             <div class="pc-sidebar-logo">
@@ -309,13 +308,12 @@ def sidebar_brand() -> None:
             <div class="pc-sidebar-caption">Gestão de cobranças recorrentes</div>
         </div>
         """,
-        unsafe_allow_html=True,
     )
 
 
 def page_header(eyebrow: str, title: str, description: str) -> None:
     """Renderiza o cabeçalho padrão das páginas."""
-    st.markdown(
+    st.html(
         f"""
         <section class="pc-header">
             <div class="pc-eyebrow">{escape(eyebrow)}</div>
@@ -323,19 +321,17 @@ def page_header(eyebrow: str, title: str, description: str) -> None:
             <p class="pc-description">{escape(description)}</p>
         </section>
         """,
-        unsafe_allow_html=True,
     )
 
 
 def section_title(title: str) -> None:
-    st.markdown(
+    st.html(
         f'<div class="pc-section-label">{escape(title)}</div>',
-        unsafe_allow_html=True,
     )
 
 
 def feature_card(icon: str, title: str, description: str) -> None:
-    st.markdown(
+    st.html(
         f"""
         <article class="pc-card">
             <div class="pc-card-icon">{escape(icon)}</div>
@@ -343,7 +339,6 @@ def feature_card(icon: str, title: str, description: str) -> None:
             <p>{escape(description)}</p>
         </article>
         """,
-        unsafe_allow_html=True,
     )
 
 
@@ -356,7 +351,7 @@ def metric_card(
     attention: bool = False,
 ) -> None:
     delta_class = " attention" if attention else ""
-    st.markdown(
+    st.html(
         f"""
         <div class="pc-metric" style="--metric-accent: {escape(accent)};">
             <div class="pc-metric-label">{escape(label)}</div>
@@ -364,7 +359,6 @@ def metric_card(
             <div class="pc-metric-delta{delta_class}">{escape(delta)}</div>
         </div>
         """,
-        unsafe_allow_html=True,
     )
 
 
@@ -375,12 +369,11 @@ def api_status(online: bool = True) -> None:
     text_color = "#05603a" if online else "#93370d"
     bg_color = "#f0fdf4" if online else "#fffaeb"
     border_color = "#d1fadf" if online else "#fedf89"
-    st.markdown(
+    st.html(
         f"""
         <div class="pc-status-strip" style="color: {text_color}; background: {bg_color}; border-color: {border_color};">
             <span class="pc-status-dot" style="background: {dot_color};"></span>
             {escape(label)}
         </div>
         """,
-        unsafe_allow_html=True,
     )
