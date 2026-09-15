@@ -1,9 +1,13 @@
-import datetime
-
 import pandas as pd
 import streamlit as st
 
-from frontend.api.cliente import listar_alunos
+from frontend.api.cliente import (
+    APIError,
+    atualizar_aluno,
+    criar_aluno,
+    desativar_aluno,
+    listar_alunos,
+)
 from frontend.ui import (
     api_status,
     apply_theme,
@@ -28,219 +32,277 @@ page_header(
     "Cadastros",
     "Gestão de alunos",
     (
-        "Cadastre novos alunos e consulte as informações das matrículas com uma "
-        "visão organizada e objetiva."
+        "Cadastre alunos e mantenha os dados das matrículas sincronizados com "
+        "a API do PagControl."
     ),
 )
 
 
+def formatar_moeda(valor: float) -> str:
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
-    """Ajusta apenas os nomes de exibição dos campos recebidos da API."""
-    df = pd.DataFrame(dados)
-    if df.empty:
-        return df
+    colunas = [
+        "ID",
+        "Nome",
+        "Modalidade",
+        "Mensalidade",
+        "Vencimento",
+        "Matrícula",
+        "Status",
+    ]
+    if not dados:
+        return pd.DataFrame(columns=colunas)
 
-    df = df.rename(
-        columns={
-            "id": "ID",
-            "nome": "Nome",
-            "valor_mensalidade": "Valor Mensalidade (R$)",
-            "dia_vencimento": "Dia Vencimento",
-            "modalidade": "Modalidade",
-            "data_matricula": "Data Matrícula",
-            "criado_em": "Criado em",
-        }
-    )
-
-    if "ativo" in df.columns:
-        df["Status"] = df["ativo"].map({True: "Ativo", False: "Inativo"})
-        df = df.drop(columns=["ativo"])
-
+    registros = []
+    for aluno in dados:
+        registros.append(
+            {
+                "ID": aluno["id"],
+                "Nome": aluno["nome"],
+                "Modalidade": aluno.get("modalidade") or "Não informada",
+                "Mensalidade": float(aluno["valor_mensalidade"]),
+                "Vencimento": aluno["dia_vencimento"],
+                "Matrícula": aluno["data_matricula"],
+                "Status": "Ativo" if aluno["ativo"] else "Inativo",
+            }
+        )
+    df = pd.DataFrame(registros, columns=colunas)
+    df["Matrícula"] = pd.to_datetime(df["Matrícula"]).dt.date
     return df
 
 
-# A leitura continua usando exatamente a integração existente. Caso o backend
-# esteja fora do ar, a página permanece acessível e informa o estado ao usuário.
-api_online = True
 try:
-    alunos_cadastrados = listar_alunos(False)
-except Exception:
-    alunos_cadastrados = []
-    api_online = False
+    alunos = listar_alunos(False)
+except APIError as exc:
+    api_status(False)
+    st.error(str(exc))
+    st.info(
+        "Inicie o backend com `uv run --package backend uvicorn backend.api:app --reload` "
+        "e recarregue esta página."
+    )
+    st.stop()
 
-status_col, help_col = st.columns([1, 2.4])
-with status_col:
-    api_status(api_online)
-with help_col:
-    if not api_online:
-        st.warning(
-            "Não foi possível consultar o backend. Confirme se a API está ativa em "
-            "http://localhost:8000."
-        )
+api_status(True)
 
-# Mantém o comportamento existente da aplicação: a tabela é carregada uma vez
-# na sessão e os novos cadastros são adicionados ao session_state.
-if "alunos_df" not in st.session_state:
-    st.session_state.alunos_df = preparar_alunos(alunos_cadastrados)
-
-alunos_df = st.session_state.alunos_df
-total_alunos = len(alunos_df)
-
-if "Status" in alunos_df.columns:
-    total_ativos = int(alunos_df["Status"].astype(str).str.casefold().eq("ativo").sum())
-else:
-    total_ativos = total_alunos
-
-if "Valor Mensalidade (R$)" in alunos_df.columns:
-    receita_mensal = pd.to_numeric(
-        alunos_df["Valor Mensalidade (R$)"], errors="coerce"
-    ).fillna(0).sum()
-else:
-    receita_mensal = 0.0
+alunos_df = preparar_alunos(alunos)
+alunos_ativos = [aluno for aluno in alunos if aluno["ativo"]]
+receita_mensal = sum(float(aluno["valor_mensalidade"]) for aluno in alunos_ativos)
 
 metric1, metric2, metric3 = st.columns(3, gap="medium")
 with metric1:
-    metric_card("Alunos cadastrados", str(total_alunos), "Base da sessão")
+    metric_card("Alunos cadastrados", str(len(alunos)), "Dados persistidos na API")
 with metric2:
-    metric_card("Matrículas ativas", str(total_ativos), "Situação atual", accent="#1d4ed8")
+    metric_card(
+        "Matrículas ativas",
+        str(len(alunos_ativos)),
+        "Situação atual",
+        accent="#1d4ed8",
+    )
 with metric3:
     metric_card(
-        "Mensalidades cadastradas",
-        f"R$ {receita_mensal:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        "Valor mensal",
+        "Receita mensal prevista",
+        formatar_moeda(receita_mensal),
+        "Alunos ativos",
         accent="#7c3aed",
     )
 
-section_title("Adicionar novo aluno")
-st.caption("Preencha os dados abaixo. Os campos essenciais estão destacados no formulário.")
+cadastro_tab, gestao_tab = st.tabs(["Cadastrar aluno", "Consultar e editar"])
 
-with st.form("add_aluno_form"):
-    st.markdown("**Informações pessoais e financeiras**")
-    col1, col2 = st.columns(2, gap="large")
-    with col1:
-        nome = st.text_input("Nome completo *", placeholder="Ex.: Maria Souza Oliveira")
-        email = st.text_input("E-mail", placeholder="Ex.: maria.souza@pagcontrol.com")
-        telefone = st.text_input("Telefone", placeholder="Ex.: (11) 98765-4321")
-        valor_mensalidade = st.number_input(
-            "Valor da mensalidade (R$) *",
-            min_value=0.0,
-            value=120.0,
-            step=10.0,
-            format="%.2f",
-        )
-    with col2:
-        cep = st.text_input("CEP", placeholder="Ex.: 04538-133")
-        endereco = st.text_input("Endereço", placeholder="Ex.: Rua das Flores")
-        numero = st.text_input("Número", placeholder="Ex.: 456")
-        complemento = st.text_input("Complemento", placeholder="Ex.: Bloco B")
-        dia_vencimento = st.number_input(
-            "Dia de vencimento *",
-            min_value=1,
-            max_value=31,
-            value=10,
-            step=1,
-        )
+with cadastro_tab:
+    section_title("Novo aluno")
+    st.caption("Os campos abaixo correspondem ao contrato atual da API.")
 
-    submitted = st.form_submit_button("Cadastrar aluno", use_container_width=True)
-
-if submitted:
-    if not nome:
-        st.error("Preencha o nome do aluno para concluir o cadastro.")
-    else:
-        novo_id = len(st.session_state.alunos_df) + 1
-        hoje = datetime.date.today().strftime("%d/%m/%Y")
-        novo_aluno = pd.DataFrame(
-            [
-                {
-                    "ID": novo_id,
-                    "Nome": nome,
-                    "Email": email,
-                    "Telefone": telefone,
-                    "CEP": cep,
-                    "Endereço": endereco,
-                    "Número": numero,
-                    "Complemento": complemento,
-                    "Valor Mensalidade (R$)": valor_mensalidade,
-                    "Dia Vencimento": int(dia_vencimento),
-                    "Status": "Ativo",
-                    "Data Matrícula": hoje,
-                }
-            ]
-        )
-
-        st.session_state.alunos_df = pd.concat(
-            [st.session_state.alunos_df, novo_aluno],
-            ignore_index=True,
-        )
-        st.success(f"Aluno **{nome}** cadastrado com sucesso.")
-        st.dataframe(novo_aluno, use_container_width=True, hide_index=True)
-
-section_title("Alunos cadastrados")
-
-filter_col, status_filter_col = st.columns([2, 1], gap="medium")
-with filter_col:
-    busca = st.text_input(
-        "Buscar aluno",
-        placeholder="Digite um nome, e-mail ou telefone",
-        label_visibility="collapsed",
-    )
-with status_filter_col:
-    filtro_status = st.selectbox(
-        "Filtrar por status",
-        ["Todos", "Ativo", "Inativo"],
-        label_visibility="collapsed",
-    )
-
-alunos_exibidos = st.session_state.alunos_df.copy()
-
-if busca and not alunos_exibidos.empty:
-    colunas_busca = [
-        coluna
-        for coluna in ["Nome", "Email", "Telefone"]
-        if coluna in alunos_exibidos.columns
-    ]
-    if colunas_busca:
-        mascara = pd.Series(False, index=alunos_exibidos.index)
-        for coluna in colunas_busca:
-            mascara |= alunos_exibidos[coluna].astype(str).str.contains(
-                busca,
-                case=False,
-                na=False,
-                regex=False,
+    with st.form("add_aluno_form", clear_on_submit=True):
+        col1, col2 = st.columns(2, gap="large")
+        with col1:
+            nome = st.text_input(
+                "Nome completo *",
+                placeholder="Ex.: Maria Souza Oliveira",
             )
-        alunos_exibidos = alunos_exibidos[mascara]
-
-if filtro_status != "Todos" and "Status" in alunos_exibidos.columns:
-    alunos_exibidos = alunos_exibidos[
-        alunos_exibidos["Status"].astype(str) == filtro_status
-    ]
-
-st.caption(f"Exibindo {len(alunos_exibidos)} de {len(st.session_state.alunos_df)} registro(s).")
-
-if alunos_exibidos.empty:
-    st.info("Nenhum aluno encontrado para os filtros selecionados.")
-else:
-    st.data_editor(
-        alunos_exibidos,
-        use_container_width=True,
-        hide_index=True,
-        disabled=["ID", "Data Matrícula", "Criado em"],
-        column_config={
-            "Status": st.column_config.SelectboxColumn(
-                "Status",
-                help="Status da matrícula do aluno",
-                options=["Ativo", "Inativo"],
-                required=True,
-            ),
-            "Valor Mensalidade (R$)": st.column_config.NumberColumn(
-                "Valor Mensalidade (R$)",
-                format="R$ %.2f",
-            ),
-            "Dia Vencimento": st.column_config.NumberColumn(
-                "Vencimento",
+            modalidade = st.text_input(
+                "Modalidade",
+                placeholder="Ex.: Musculação",
+            )
+        with col2:
+            valor_mensalidade = st.number_input(
+                "Valor da mensalidade (R$) *",
+                min_value=0.01,
+                value=120.0,
+                step=10.0,
+                format="%.2f",
+            )
+            dia_vencimento = st.number_input(
+                "Dia de vencimento *",
                 min_value=1,
                 max_value=31,
-                format="%d",
+                value=10,
+                step=1,
+            )
+
+        cadastrar = st.form_submit_button("Cadastrar aluno", width="stretch")
+
+    if cadastrar:
+        nome_limpo = nome.strip()
+        if not nome_limpo:
+            st.error("Preencha o nome do aluno para concluir o cadastro.")
+        else:
+            try:
+                aluno_criado = criar_aluno(
+                    {
+                        "nome": nome_limpo,
+                        "modalidade": modalidade.strip() or None,
+                        "valor_mensalidade": float(valor_mensalidade),
+                        "dia_vencimento": int(dia_vencimento),
+                    }
+                )
+            except APIError as exc:
+                st.error(str(exc))
+            else:
+                st.success(
+                    f"Aluno **{aluno_criado['nome']}** cadastrado e persistido com sucesso."
+                )
+                st.rerun()
+
+with gestao_tab:
+    section_title("Base de alunos")
+
+    filter_col, status_filter_col = st.columns([2, 1], gap="medium")
+    with filter_col:
+        busca = st.text_input(
+            "Buscar aluno",
+            placeholder="Digite o nome ou a modalidade",
+            label_visibility="collapsed",
+        )
+    with status_filter_col:
+        filtro_status = st.selectbox(
+            "Filtrar por status",
+            ["Todos", "Ativo", "Inativo"],
+            label_visibility="collapsed",
+        )
+
+    alunos_exibidos = alunos_df.copy()
+    if busca:
+        mascara = (
+            alunos_exibidos["Nome"].astype(str).str.contains(busca, case=False, na=False, regex=False)
+            | alunos_exibidos["Modalidade"]
+            .astype(str)
+            .str.contains(busca, case=False, na=False, regex=False)
+        )
+        alunos_exibidos = alunos_exibidos[mascara]
+
+    if filtro_status != "Todos":
+        alunos_exibidos = alunos_exibidos[alunos_exibidos["Status"] == filtro_status]
+
+    st.caption(f"Exibindo {len(alunos_exibidos)} de {len(alunos_df)} registro(s).")
+
+    if alunos_exibidos.empty:
+        st.info("Nenhum aluno encontrado para os filtros selecionados.")
+    else:
+        st.dataframe(
+            alunos_exibidos,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "ID": st.column_config.NumberColumn("ID", format="%d"),
+                "Mensalidade": st.column_config.NumberColumn(
+                    "Mensalidade",
+                    format="R$ %.2f",
+                ),
+                "Vencimento": st.column_config.NumberColumn(
+                    "Vencimento",
+                    format="Dia %d",
+                ),
+                "Matrícula": st.column_config.DateColumn(
+                    "Matrícula",
+                    format="DD/MM/YYYY",
+                ),
+            },
+        )
+
+    if alunos:
+        section_title("Editar matrícula")
+        aluno_por_id = {aluno["id"]: aluno for aluno in alunos}
+        aluno_id = st.selectbox(
+            "Selecione um aluno",
+            options=list(aluno_por_id),
+            format_func=lambda item: (
+                f"{aluno_por_id[item]['nome']} · "
+                f"{'Ativo' if aluno_por_id[item]['ativo'] else 'Inativo'}"
             ),
-        },
-    )
+        )
+        selecionado = aluno_por_id[aluno_id]
+
+        with st.form("editar_aluno_form"):
+            edit_col1, edit_col2 = st.columns(2, gap="large")
+            with edit_col1:
+                nome_editado = st.text_input("Nome completo", value=selecionado["nome"])
+                modalidade_editada = st.text_input(
+                    "Modalidade",
+                    value=selecionado.get("modalidade") or "",
+                )
+            with edit_col2:
+                valor_editado = st.number_input(
+                    "Valor da mensalidade (R$)",
+                    min_value=0.01,
+                    value=float(selecionado["valor_mensalidade"]),
+                    step=10.0,
+                    format="%.2f",
+                )
+                vencimento_editado = st.number_input(
+                    "Dia de vencimento",
+                    min_value=1,
+                    max_value=31,
+                    value=int(selecionado["dia_vencimento"]),
+                    step=1,
+                )
+
+            salvar = st.form_submit_button("Salvar alterações", width="stretch")
+
+        if salvar:
+            if not nome_editado.strip():
+                st.error("O nome do aluno não pode ficar vazio.")
+            else:
+                try:
+                    atualizado = atualizar_aluno(
+                        aluno_id,
+                        {
+                            "nome": nome_editado.strip(),
+                            "modalidade": modalidade_editada.strip() or None,
+                            "valor_mensalidade": float(valor_editado),
+                            "dia_vencimento": int(vencimento_editado),
+                        },
+                    )
+                except APIError as exc:
+                    st.error(str(exc))
+                else:
+                    st.success(f"Dados de **{atualizado['nome']}** atualizados com sucesso.")
+                    st.rerun()
+
+        acao_status = "Desativar matrícula" if selecionado["ativo"] else "Reativar matrícula"
+        st.caption(
+            "A desativação preserva o aluno e seu histórico financeiro no banco de dados."
+        )
+        confirmar_status = st.checkbox(
+            f"Confirmo que desejo {acao_status.lower()} de {selecionado['nome']}",
+            key=f"confirmar_status_{aluno_id}",
+        )
+        if st.button(
+            acao_status,
+            disabled=not confirmar_status,
+            width="stretch",
+            type="secondary",
+        ):
+            try:
+                if selecionado["ativo"]:
+                    desativar_aluno(aluno_id)
+                    mensagem = "desativada"
+                else:
+                    atualizar_aluno(aluno_id, {"ativo": True})
+                    mensagem = "reativada"
+            except APIError as exc:
+                st.error(str(exc))
+            else:
+                st.success(f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso.")
+                st.rerun()
