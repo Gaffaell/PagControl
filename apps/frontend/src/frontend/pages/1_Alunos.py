@@ -161,6 +161,7 @@ with cadastro_tab:
                 st.success(
                     f"Aluno **{aluno_criado['nome']}** cadastrado e persistido com sucesso."
                 )
+                listar_alunos.clear()
                 st.rerun()
 
 with gestao_tab:
@@ -277,6 +278,7 @@ with gestao_tab:
                     st.success(
                         f"Dados de **{atualizado['nome']}** atualizados com sucesso."
                     )
+                    listar_alunos.clear()
                     st.rerun()
 
         acao_status = (
@@ -308,4 +310,5 @@ with gestao_tab:
                 st.success(
                     f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso."
                 )
+                listar_alunos.clear()
                 st.rerun()

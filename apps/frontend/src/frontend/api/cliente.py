@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 import httpx
+import streamlit as st
 
 BASE_URL = os.getenv("PAGCONTROL_API_URL", "http://localhost:8000").rstrip("/")
 REQUEST_TIMEOUT = 10
@@ -52,6 +53,7 @@ def _request(
         raise APIError("A API retornou uma resposta em formato inválido.") from exc
 
 
+@st.cache_data
 def listar_alunos(apenas_ativos: bool = False) -> list[dict[str, Any]]:
     return _request("GET", "/alunos", params={"apenas_ativos": apenas_ativos})
 
@@ -68,6 +70,7 @@ def desativar_aluno(aluno_id: int) -> None:
     _request("DELETE", f"/alunos/{aluno_id}")
 
 
+@st.cache_data
 def listar_cobrancas(
     aluno_id: int | None = None,
     status: str | None = None,
@@ -100,6 +103,7 @@ def atualizar_status_cobrancas() -> int:
     return int(resultado["cobrancas_atualizadas"])
 
 
+@st.cache_data
 def obter_configuracao_regua() -> dict[str, Any]:
     return _request("GET", "/configuracao-regua")
 
