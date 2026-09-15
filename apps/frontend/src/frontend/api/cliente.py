@@ -99,3 +99,11 @@ def registrar_pagamento(
 def atualizar_status_cobrancas() -> int:
     resultado = _request("POST", "/cobrancas/atualizar-status")
     return int(resultado["cobrancas_atualizadas"])
+
+
+def obter_configuracao_regua() -> dict[str, Any]:
+    return _request("GET", "/configuracao-regua")
+
+
+def atualizar_configuracao_regua(dados: dict[str, Any]) -> dict[str, Any]:
+    return _request("PATCH", "/configuracao-regua", json=dados)

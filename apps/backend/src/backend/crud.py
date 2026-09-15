@@ -118,6 +118,20 @@ def registrar_pagamento(
     return cobranca
 
 
+def obter_configuracao_regua(db: Session) -> models.ConfiguracaoRegua | None:
+    return db.scalar(select(models.ConfiguracaoRegua))
+
+
+def atualizar_configuracao_regua(
+    db: Session, regua: models.ConfiguracaoRegua, dados: schemas.ConfiguracaoReguaUpdate
+) -> models.ConfiguracaoRegua:
+    for campo, valor in dados.model_dump(exclude_unset=True).items():
+        setattr(regua, campo, valor)
+    db.commit()
+    db.refresh(regua)
+    return regua
+
+
 def atualizar_status_atrasos(db: Session) -> int:
     """Aplica a régua de cobrança: marca 'atrasado' após o vencimento e
     'inadimplente' após o maior intervalo de atraso configurado."""

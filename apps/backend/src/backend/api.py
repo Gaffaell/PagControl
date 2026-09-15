@@ -88,3 +88,21 @@ def atualizar_status_atrasos(db: Session = Depends(get_db)):
     agendador (cron/scheduler) diário; por ora é disparado manualmente."""
     total = crud.atualizar_status_atrasos(db)
     return {"cobrancas_atualizadas": total}
+
+
+@app.get("/configuracao-regua", response_model=schemas.ConfiguracaoReguaOut)
+def obter_configuracao_regua(db: Session = Depends(get_db)):
+    regua = crud.obter_configuracao_regua(db)
+    if not regua:
+        raise HTTPException(404, "Configuração da régua não encontrada")
+    return regua
+
+
+@app.patch("/configuracao-regua", response_model=schemas.ConfiguracaoReguaOut)
+def atualizar_configuracao_regua(
+    dados: schemas.ConfiguracaoReguaUpdate, db: Session = Depends(get_db)
+):
+    regua = crud.obter_configuracao_regua(db)
+    if not regua:
+        raise HTTPException(404, "Configuração da régua não encontrada")
+    return crud.atualizar_configuracao_regua(db, regua, dados)
