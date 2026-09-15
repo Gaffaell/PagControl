@@ -21,6 +21,13 @@ class AlunoUpdate(BaseModel):
     dia_vencimento: int | None = None
     modalidade: str | None = None
     ativo: bool | None = None
+    # Campos de contato/endereço: editados só pela tela de Admin.
+    email: str | None = None
+    telefone: str | None = None
+    cep: str | None = None
+    endereco: str | None = None
+    numero: str | None = None
+    complemento: str | None = None
 
 
 class AlunoOut(BaseModel):
@@ -35,7 +42,28 @@ class AlunoOut(BaseModel):
     modalidade: str | None
     data_matricula: date
     ativo: bool
+    email: str | None
+    telefone: str | None
+    cep: str | None
+    endereco: str | None
+    numero: str | None
+    complemento: str | None
     criado_em: datetime
+
+
+class ConfiguracaoReguaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    dias_lembrete_antes: int
+    dias_aviso_vencimento: int
+    dias_cobranca_atraso: str
+
+
+class ConfiguracaoReguaUpdate(BaseModel):
+    dias_lembrete_antes: int | None = None
+    dias_aviso_vencimento: int | None = None
+    # Lista de dias separada por vírgula, ex.: "3,7".
+    dias_cobranca_atraso: str | None = None
 
 
 class CobrancaOut(BaseModel):

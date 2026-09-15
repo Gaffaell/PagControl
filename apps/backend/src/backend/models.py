@@ -42,6 +42,15 @@ class Aluno(Base):
     # Usada depois pela curva de vintage (risco de inadimplência por turma de matrícula).
     data_matricula: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
     ativo: Mapped[bool] = mapped_column(default=True)
+    # Dados de contato/endereço: opcionais, fora do cadastro mínimo da
+    # proposta. Coletados apenas pela tela de Admin, não pelo cadastro
+    # rápido de aluno.
+    email: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    cep: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    endereco: Mapped[str | None] = mapped_column(String(90), nullable=True)
+    numero: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    complemento: Mapped[str | None] = mapped_column(String(80), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     cobrancas: Mapped[list["Cobranca"]] = relationship(back_populates="aluno")
