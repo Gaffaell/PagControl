@@ -1,6 +1,5 @@
 import pandas as pd
 import streamlit as st
-
 from frontend.api.cliente import (
     APIError,
     atualizar_aluno,
@@ -16,7 +15,6 @@ from frontend.ui import (
     section_title,
     sidebar_brand,
 )
-
 
 st.set_page_config(
     page_title="Gestão de Alunos - PagControl",
@@ -184,11 +182,10 @@ with gestao_tab:
 
     alunos_exibidos = alunos_df.copy()
     if busca:
-        mascara = (
-            alunos_exibidos["Nome"].astype(str).str.contains(busca, case=False, na=False, regex=False)
-            | alunos_exibidos["Modalidade"]
-            .astype(str)
-            .str.contains(busca, case=False, na=False, regex=False)
+        mascara = alunos_exibidos["Nome"].astype(str).str.contains(
+            busca, case=False, na=False, regex=False
+        ) | alunos_exibidos["Modalidade"].astype(str).str.contains(
+            busca, case=False, na=False, regex=False
         )
         alunos_exibidos = alunos_exibidos[mascara]
 
@@ -277,10 +274,14 @@ with gestao_tab:
                 except APIError as exc:
                     st.error(str(exc))
                 else:
-                    st.success(f"Dados de **{atualizado['nome']}** atualizados com sucesso.")
+                    st.success(
+                        f"Dados de **{atualizado['nome']}** atualizados com sucesso."
+                    )
                     st.rerun()
 
-        acao_status = "Desativar matrícula" if selecionado["ativo"] else "Reativar matrícula"
+        acao_status = (
+            "Desativar matrícula" if selecionado["ativo"] else "Reativar matrícula"
+        )
         st.caption(
             "A desativação preserva o aluno e seu histórico financeiro no banco de dados."
         )
@@ -304,5 +305,7 @@ with gestao_tab:
             except APIError as exc:
                 st.error(str(exc))
             else:
-                st.success(f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso.")
+                st.success(
+                    f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso."
+                )
                 st.rerun()

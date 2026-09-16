@@ -44,7 +44,9 @@ def desativar_aluno(db: Session, aluno: models.Aluno) -> None:
     db.commit()
 
 
-def _proxima_competencia_e_vencimento(dia_vencimento: int, a_partir_de: date) -> tuple[str, date]:
+def _proxima_competencia_e_vencimento(
+    dia_vencimento: int, a_partir_de: date
+) -> tuple[str, date]:
     """Calcula a competência (mês) e o vencimento da próxima fatura.
 
     Trata meses com menos dias que o dia de vencimento cadastrado (ex.:
@@ -93,7 +95,9 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
 
 
 def listar_cobrancas(
-    db: Session, aluno_id: int | None = None, status: models.StatusCobranca | None = None
+    db: Session,
+    aluno_id: int | None = None,
+    status: models.StatusCobranca | None = None,
 ) -> list[models.Cobranca]:
     stmt = select(models.Cobranca)
     if aluno_id is not None:

@@ -1,6 +1,12 @@
 import streamlit as st
 
-from frontend.ui import apply_theme, feature_card, page_header, section_title, sidebar_brand
+from frontend.ui import (
+    apply_theme,
+    feature_card,
+    page_header,
+    section_title,
+    sidebar_brand,
+)
 
 st.set_page_config(
     page_title="PagControl - Sistema de Cobrança",
@@ -47,11 +53,21 @@ with col2:
 section_title("Como começar")
 step1, step2, step3 = st.columns(3, gap="medium")
 with step1:
-    feature_card("1", "Cadastre", "Inclua os dados do aluno e defina mensalidade e vencimento.")
+    feature_card(
+        "1", "Cadastre", "Inclua os dados do aluno e defina mensalidade e vencimento."
+    )
 with step2:
-    feature_card("2", "Acompanhe", "Consulte a base cadastrada e mantenha as informações organizadas.")
+    feature_card(
+        "2",
+        "Acompanhe",
+        "Consulte a base cadastrada e mantenha as informações organizadas.",
+    )
 with step3:
-    feature_card("3", "Analise", "Use o painel para visualizar os principais indicadores financeiros.")
+    feature_card(
+        "3",
+        "Analise",
+        "Use o painel para visualizar os principais indicadores financeiros.",
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.caption("PagControl · FastAPI + Streamlit · Ambiente de gestão recorrente")

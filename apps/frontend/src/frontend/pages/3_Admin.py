@@ -1,5 +1,4 @@
 import streamlit as st
-
 from frontend.api.cliente import (
     APIError,
     atualizar_aluno,
@@ -66,7 +65,9 @@ else:
         with col2:
             endereco = st.text_input("Endereço", value=aluno.get("endereco") or "")
             numero = st.text_input("Número", value=aluno.get("numero") or "")
-            complemento = st.text_input("Complemento", value=aluno.get("complemento") or "")
+            complemento = st.text_input(
+                "Complemento", value=aluno.get("complemento") or ""
+            )
 
         salvar_contato = st.form_submit_button("Salvar dados de contato")
 
@@ -86,7 +87,9 @@ else:
         except APIError as exc:
             st.error(str(exc))
         else:
-            st.success(f"Dados de contato de **{aluno['nome']}** atualizados com sucesso!")
+            st.success(
+                f"Dados de contato de **{aluno['nome']}** atualizados com sucesso!"
+            )
 
 st.divider()
 section_title("Régua de cobrança")
@@ -94,11 +97,15 @@ section_title("Régua de cobrança")
 with st.form("admin_regua_form"):
     dias_lembrete_antes = st.number_input(
         "Dias de lembrete antes do vencimento",
-        min_value=0, max_value=30, value=regua["dias_lembrete_antes"],
+        min_value=0,
+        max_value=30,
+        value=regua["dias_lembrete_antes"],
     )
     dias_aviso_vencimento = st.number_input(
         "Dias de aviso no vencimento",
-        min_value=0, max_value=30, value=regua["dias_aviso_vencimento"],
+        min_value=0,
+        max_value=30,
+        value=regua["dias_aviso_vencimento"],
     )
     dias_cobranca_atraso = st.text_input(
         "Dias de cobrança após atraso (separados por vírgula)",

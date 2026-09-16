@@ -1,7 +1,6 @@
 import altair as alt
 import pandas as pd
 import streamlit as st
-
 from frontend.api.cliente import APIError, listar_alunos, listar_cobrancas
 from frontend.ui import (
     api_status,
@@ -11,7 +10,6 @@ from frontend.ui import (
     section_title,
     sidebar_brand,
 )
-
 
 STATUS_LABELS = {
     "pago": "Pagas",
@@ -211,7 +209,9 @@ else:
         hide_index=True,
         column_config={
             "ID": st.column_config.NumberColumn("ID", format="%d"),
-            "Vencimento": st.column_config.DateColumn("Vencimento", format="DD/MM/YYYY"),
+            "Vencimento": st.column_config.DateColumn(
+                "Vencimento", format="DD/MM/YYYY"
+            ),
             "Pagamento": st.column_config.DateColumn("Pagamento", format="DD/MM/YYYY"),
             "Valor": st.column_config.NumberColumn("Valor", format="R$ %.2f"),
         },

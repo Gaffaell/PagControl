@@ -92,3 +92,24 @@ Para conectar a um banco PostgreSQL gerenciado (como [Neon](https://neon.tech)):
    cp .env.example .env
    ```
 2. Defina a variável `DATABASE_URL` com sua connection string do Postgres.
+
+---
+
+## 🧹 Qualidade de Código (Lint & Format)
+
+O repositório utiliza o [Ruff](https://docs.astral.sh/ruff/) para garantir formatação consistente e conformidade de código:
+
+```bash
+# Executar verificação de lint
+uv run ruff check .
+
+# Aplicar correções automáticas de lint
+uv run ruff check --fix .
+
+# Formatar todos os arquivos
+uv run ruff format .
+
+# Verificar conformidade de formatação (sem modificar arquivos)
+uv run ruff format --check .
+```
+
