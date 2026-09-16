@@ -138,6 +138,9 @@ venv.bak/
 .neon
 academia.db
 
+# Analytics (Big Data): base sintética e gráficos gerados localmente
+apps/analytics/src/analytics/data/
+
 # Spyder project settings
 .spyderproject
 .spyproject
