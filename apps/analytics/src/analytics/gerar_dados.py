@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
+import pandas as pd  # movido pro topo: sugestão do Herllon na revisão da PR #9
 from faker import Faker
 
 # Caminho do arquivo DuckDB de saída. Fica dentro da própria pasta "data" ao
@@ -262,8 +263,6 @@ def salvar_no_duckdb(alunos: list[Aluno], cobrancas: list[dict]) -> None:
 
 def duckdb_frame_alunos(alunos: list[Aluno]):
     """Converte a lista de objetos Aluno num DataFrame do pandas (formato de tabela)."""
-    import pandas as pd
-
     return pd.DataFrame(
         [
             {
@@ -282,8 +281,6 @@ def duckdb_frame_alunos(alunos: list[Aluno]):
 
 def duckdb_frame_cobrancas(cobrancas: list[dict]):
     """Converte a lista de cobranças (já são dicionários) direto num DataFrame."""
-    import pandas as pd
-
     return pd.DataFrame(cobrancas)
 
 
