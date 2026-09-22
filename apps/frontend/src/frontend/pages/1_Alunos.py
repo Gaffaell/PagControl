@@ -5,8 +5,10 @@ from frontend.api.cliente import (
     atualizar_aluno,
     criar_aluno,
     desativar_aluno,
-    listar_alunos,
     gerar_cobranca,
+    listar_alunos,
+    listar_cobrancas,
+    registrar_pagamento,
 )
 from frontend.ui import (
     api_status,
@@ -16,6 +18,13 @@ from frontend.ui import (
     section_title,
     sidebar_brand,
 )
+
+STATUS_LABELS = {
+    "pago": "Pagas",
+    "pendente": "Pendentes",
+    "atrasado": "Atrasadas",
+    "inadimplente": "Inadimplentes",
+}
 
 st.set_page_config(
     page_title="Gestão de Alunos - PagControl",
@@ -74,6 +83,7 @@ def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
 
 try:
     alunos = listar_alunos(False)
+    cobrancas = listar_cobrancas()
 except APIError as exc:
     api_status(False)
     st.error(str(exc))
@@ -107,7 +117,9 @@ with metric3:
         accent="#7c3aed",
     )
 
-cadastro_tab, gestao_tab = st.tabs(["Cadastrar aluno", "Consultar e editar"])
+cadastro_tab, gestao_tab, pagamento_tab = st.tabs(
+    ["Cadastrar aluno", "Consultar e editar", "Registrar pagamento"]
+)
 
 with cadastro_tab:
     section_title("Novo aluno")
@@ -157,7 +169,7 @@ with cadastro_tab:
                     }
                 )
                 aluno_id = aluno_criado["id"]
-                gerar_cobranca = gerar_cobranca(aluno_id)
+                cobranca_criada = gerar_cobranca(aluno_id)
             except APIError as exc:
                 st.error(str(exc))
             else:
@@ -227,6 +239,7 @@ with gestao_tab:
         aluno_id = st.selectbox(
             "Selecione um aluno",
             options=list(aluno_por_id),
+            key="aluno_para_editar",
             format_func=lambda item: (
                 f"{aluno_por_id[item]['nome']} · "
                 f"{'Ativo' if aluno_por_id[item]['ativo'] else 'Inativo'}"
@@ -312,3 +325,132 @@ with gestao_tab:
                     f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso."
                 )
                 st.rerun()
+
+section_title("Registro de pagamentos")
+if not cobrancas:
+    st.caption("Nenhuma cobrança disponível para detalhamento.")
+else:
+    nomes_por_id = {aluno["id"]: aluno["nome"] for aluno in alunos}
+    detalhes = pd.DataFrame(
+        [
+            {
+                "ID": cobranca["id"],
+                "Aluno": nomes_por_id.get(
+                    cobranca["aluno_id"],
+                    f"Aluno #{cobranca['aluno_id']}",
+                ),
+                "Competência": cobranca["competencia"],
+                "Vencimento": cobranca["data_vencimento"],
+                "Valor": float(cobranca["valor"]),
+                "Status": STATUS_LABELS.get(
+                    cobranca["status"],
+                    cobranca["status"].title(),
+                ),
+                "Pagamento": cobranca.get("data_pagamento"),
+                "Forma": (cobranca.get("forma_pagamento") or "—").upper(),
+            }
+            for cobranca in cobrancas
+        ]
+    )
+    detalhes["Vencimento"] = pd.to_datetime(detalhes["Vencimento"]).dt.date
+    detalhes["Pagamento"] = pd.to_datetime(detalhes["Pagamento"]).dt.date
+
+    st.dataframe(
+        detalhes,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "ID": st.column_config.NumberColumn("ID", format="%d"),
+            "Vencimento": st.column_config.DateColumn(
+                "Vencimento", format="DD/MM/YYYY"
+            ),
+            "Pagamento": st.column_config.DateColumn("Pagamento", format="DD/MM/YYYY"),
+            "Valor": st.column_config.NumberColumn("Valor", format="R$ %.2f"),
+        },
+    )
+
+with pagamento_tab:
+    section_title("Registrar pagamento")
+    st.caption("Os campos abaixo correspondem ao contrato atual da API.")
+
+    if alunos:
+        section_title("Registrar pagamento de aluno")
+        aluno_por_id = {aluno["id"]: aluno for aluno in alunos}
+        aluno_id = st.selectbox(
+            "Selecione um aluno",
+            options=list(aluno_por_id),
+            key="aluno_para_registrar_pagamento",
+            format_func=lambda item: (
+                f"{aluno_por_id[item]['nome']} · "
+                f"{'Ativo' if aluno_por_id[item]['ativo'] else 'Inativo'}"
+            ),
+        )
+        selecionado = aluno_por_id[aluno_id]
+        cobrancas_do_aluno = [
+            cobranca
+            for cobranca in cobrancas
+            if cobranca["aluno_id"] == aluno_id and cobranca["status"] != "pago"
+        ]
+
+        if not cobrancas_do_aluno:
+            st.info("Este aluno não possui cobranças pendentes de pagamento.")
+        else:
+            cobranca_por_id = {
+                cobranca["id"]: cobranca for cobranca in cobrancas_do_aluno
+            }
+            cobranca_id = st.selectbox(
+                "Selecione a cobrança",
+                options=list(cobranca_por_id),
+                format_func=lambda item: (
+                    (
+                        f"#{item} · {cobranca_por_id[item]['competencia']} · "
+                        f"R$ {float(cobranca_por_id[item]['valor']):,.2f}"
+                    )
+                    .replace(",", "X")
+                    .replace(".", ",")
+                    .replace("X", ".")
+                ),
+            )
+            cobranca_selecionada = cobranca_por_id[cobranca_id]
+
+            with st.form("registrar_pagamento_form"):
+                id_col, forma_col, data_col = st.columns(3, gap="medium")
+                with id_col:
+                    st.number_input(
+                        "Número ID da cobrança",
+                        value=cobranca_id,
+                        disabled=True,
+                    )
+                with forma_col:
+                    forma_pagamento = st.selectbox(
+                        "Forma de pagamento",
+                        ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de débito", "Boleto"],
+                        index=0,
+                    )
+                with data_col:
+                    data_pagamento = st.date_input("Data do pagamento")
+
+                st.caption(
+                    f"Competência: {cobranca_selecionada['competencia']} · "
+                    f"Valor: {formatar_moeda(float(cobranca_selecionada['valor']))}"
+                )
+                salvar = st.form_submit_button(
+                    "Registrar pagamento",
+                    width="stretch",
+                )
+
+            if salvar:
+                try:
+                    atualizado = registrar_pagamento(
+                        cobranca_id,
+                        forma_pagamento.lower(),
+                        data_pagamento.isoformat(),
+                    )
+                except APIError as exc:
+                    st.error(str(exc))
+                else:
+                    st.success(
+                        f"Pagamento da cobrança **#{atualizado['id']}** de "
+                        f"**{selecionado['nome']}** registrado com sucesso."
+                    )
+                    st.rerun()
