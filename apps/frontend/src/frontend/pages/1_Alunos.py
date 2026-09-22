@@ -6,6 +6,7 @@ from frontend.api.cliente import (
     criar_aluno,
     desativar_aluno,
     listar_alunos,
+    gerar_cobranca,
 )
 from frontend.ui import (
     api_status,
@@ -155,6 +156,8 @@ with cadastro_tab:
                         "dia_vencimento": int(dia_vencimento),
                     }
                 )
+                aluno_id = aluno_criado["id"]
+                gerar_cobranca = gerar_cobranca(aluno_id)
             except APIError as exc:
                 st.error(str(exc))
             else:
