@@ -94,6 +94,34 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
     return cobranca
 
 
+def gerar_cobranca_para_competencia(
+    db: Session, aluno: models.Aluno, ano: int, mes: int
+) -> models.Cobranca:
+    """Gera a cobrança de uma competência específica sem duplicá-la."""
+    competencia = f"{ano:04d}-{mes:02d}"
+    existente = db.scalar(
+        select(models.Cobranca).where(
+            models.Cobranca.aluno_id == aluno.id,
+            models.Cobranca.competencia == competencia,
+        )
+    )
+    if existente:
+        return existente
+
+    ultimo_dia_do_mes = calendar.monthrange(ano, mes)[1]
+    dia_vencimento = min(aluno.dia_vencimento, ultimo_dia_do_mes)
+    cobranca = models.Cobranca(
+        aluno_id=aluno.id,
+        competencia=competencia,
+        valor=aluno.valor_mensalidade,
+        data_vencimento=date(ano, mes, dia_vencimento),
+    )
+    db.add(cobranca)
+    db.commit()
+    db.refresh(cobranca)
+    return cobranca
+
+
 def listar_cobrancas(
     db: Session,
     aluno_id: int | None = None,

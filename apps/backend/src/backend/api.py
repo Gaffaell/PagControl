@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
+from datetime import date
 
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
-from .database import get_db
+from .database import SessionLocal, get_db
 from .init_db import init_db
 
 
@@ -13,6 +14,13 @@ async def lifespan(app: FastAPI):
     # Garante que as tabelas existam ao subir o servidor (útil em bancos
     # novos, como um Neon recém-linkado, sem precisar rodar init_db.py à parte).
     init_db()
+    hoje = date.today()
+    db = SessionLocal()
+    try:
+        for aluno in crud.listar_alunos(db, apenas_ativos=True):
+            crud.gerar_cobranca_para_competencia(db, aluno, hoje.year, hoje.month)
+    finally:
+        db.close()
     yield
 
 

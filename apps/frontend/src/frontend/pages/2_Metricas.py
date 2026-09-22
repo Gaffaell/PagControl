@@ -173,7 +173,7 @@ else:
             },
         )
 
-section_title("Detalhamento da carteira")
+section_title("Detalhamento da carteira do mês")
 
 if not cobrancas:
     st.caption("Nenhuma cobrança disponível para detalhamento.")
