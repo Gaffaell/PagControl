@@ -47,19 +47,23 @@ def desativar_aluno(db: Session, aluno: models.Aluno) -> None:
 def _proxima_competencia_e_vencimento(
     dia_vencimento: int, a_partir_de: date
 ) -> tuple[str, date]:
-    """Calcula a competência (mês) e o vencimento da próxima fatura.
+    """Calcula a competência atual e o vencimento do próximo mês.
 
-    Trata meses com menos dias que o dia de vencimento cadastrado (ex.:
-    vencimento dia 31 em um mês de 30 dias) usando o último dia do mês.
+    A competência representa o mês em curso, enquanto a data de vencimento
+    aponta para o mês seguinte. Quando o dia de vencimento não existe no mês de
+    cobrança (ex.: dia 31 em fevereiro), usamos o último dia disponível do mês.
     """
-    ano, mes = a_partir_de.year, a_partir_de.month + 1
-    if mes > 12:
-        mes = 1
-        ano += 1
-    ultimo_dia_do_mes = calendar.monthrange(ano, mes)[1]
-    dia = min(dia_vencimento, ultimo_dia_do_mes)
-    vencimento = date(ano, mes, dia)
+    ano, mes = a_partir_de.year, a_partir_de.month
     competencia = f"{ano:04d}-{mes:02d}"
+
+    ano_vencimento, mes_vencimento = ano, mes + 1
+    if mes_vencimento > 12:
+        mes_vencimento = 1
+        ano_vencimento += 1
+
+    ultimo_dia_do_mes = calendar.monthrange(ano_vencimento, mes_vencimento)[1]
+    dia = min(dia_vencimento, ultimo_dia_do_mes)
+    vencimento = date(ano_vencimento, mes_vencimento, dia)
     return competencia, vencimento
 
 
@@ -97,7 +101,11 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
 def gerar_cobranca_para_competencia(
     db: Session, aluno: models.Aluno, ano: int, mes: int
 ) -> models.Cobranca:
-    """Gera a cobrança de uma competência específica sem duplicá-la."""
+    """Gera a cobrança de uma competência específica sem duplicá-la.
+
+    A competência é o mês cobrado, mas a data de vencimento fica no mês
+    seguinte para o calendário de cobrança do sistema.
+    """
     competencia = f"{ano:04d}-{mes:02d}"
     existente = db.scalar(
         select(models.Cobranca).where(
@@ -108,13 +116,18 @@ def gerar_cobranca_para_competencia(
     if existente:
         return existente
 
-    ultimo_dia_do_mes = calendar.monthrange(ano, mes)[1]
+    ano_vencimento, mes_vencimento = ano, mes + 1
+    if mes_vencimento > 12:
+        mes_vencimento = 1
+        ano_vencimento += 1
+
+    ultimo_dia_do_mes = calendar.monthrange(ano_vencimento, mes_vencimento)[1]
     dia_vencimento = min(aluno.dia_vencimento, ultimo_dia_do_mes)
     cobranca = models.Cobranca(
         aluno_id=aluno.id,
         competencia=competencia,
         valor=aluno.valor_mensalidade,
-        data_vencimento=date(ano, mes, dia_vencimento),
+        data_vencimento=date(ano_vencimento, mes_vencimento, dia_vencimento),
     )
     db.add(cobranca)
     db.commit()

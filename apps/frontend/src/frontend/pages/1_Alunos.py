@@ -424,7 +424,7 @@ with pagamento_tab:
                 with forma_col:
                     forma_pagamento = st.selectbox(
                         "Forma de pagamento",
-                        ["Pix", "Dinheiro", "Cartão de crédito", "Cartão de débito", "Boleto"],
+                        ["Pix", "Cnab"],
                         index=0,
                     )
                 with data_col:
