@@ -125,6 +125,7 @@ class ConfiguracaoRegua(Base):
     # suficiente para o único caso de uso (poucos intervalos, sem edição
     # frequente), evita uma tabela extra só para isso.
     dias_cobranca_atraso: Mapped[str] = mapped_column(String(50), default="3,7")
+    porcentagem_juros_por_dia: Mapped[str] = mapped_column(String(50), default="0")
 
     def lista_dias_cobranca_atraso(self) -> list[int]:
         return [int(d) for d in self.dias_cobranca_atraso.split(",") if d]

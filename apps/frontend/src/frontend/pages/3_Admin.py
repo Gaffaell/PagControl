@@ -113,6 +113,10 @@ with st.form("admin_regua_form"):
         value=regua["dias_cobranca_atraso"],
         help="Ex.: 3,7 — cobra em 3 dias de atraso e novamente em 7 (vira inadimplente no maior valor).",
     )
+    porcentagem_juros_por_dia = st.text_input(
+        "Porcentagem de juros por dia atrasado",
+        value=regua["porcentagem_juros_por_dia"],
+    )
 
     salvar_regua = st.form_submit_button("Salvar régua de cobrança")
 
@@ -123,6 +127,7 @@ if salvar_regua:
                 "dias_lembrete_antes": int(dias_lembrete_antes),
                 "dias_aviso_vencimento": int(dias_aviso_vencimento),
                 "dias_cobranca_atraso": dias_cobranca_atraso,
+                "porcentagem_juros_por_dia": porcentagem_juros_por_dia,
             }
         )
     except APIError as exc:
