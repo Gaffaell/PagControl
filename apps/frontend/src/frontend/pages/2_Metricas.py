@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -64,26 +66,25 @@ except APIError as exc:
 api_status(True)
 st.caption("Dados carregados diretamente da API · nenhuma métrica demonstrativa")
 
-MESES_LABEL = [
-    "",
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
-]
+MESES_LABEL = {
+    1: "Janeiro",
+    2: "Fevereiro",
+    3: "Março",
+    4: "Abril",
+    5: "Maio",
+    6: "Junho",
+    7: "Julho",
+    8: "Agosto",
+    9: "Setembro",
+    10: "Outubro",
+    11: "Novembro",
+    12: "Dezembro",
+}
 
 
 def formatar_competencia(competencia: str) -> str:
-    ano, mes = competencia.split("-")
-    return f"{MESES_LABEL[int(mes)]}/{ano}"
+    data = datetime.strptime(competencia, "%Y-%m")
+    return f"{MESES_LABEL[data.month]}/{data.year}"
 
 
 competencias_disponiveis = sorted(
