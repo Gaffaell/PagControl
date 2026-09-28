@@ -171,6 +171,16 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
         valor=aluno.valor_mensalidade,
         data_vencimento=vencimento,
     )
+    venceu = db.scalar(
+        select(models.Cobranca).where(
+            models.Cobranca.aluno_id == aluno.id,
+            models.Cobranca.status.in_(
+                [models.StatusCobranca.ATRASADO, models.StatusCobranca.INADIMPLENTE]
+            ),
+        )
+    )
+    if venceu:
+        return venceu
     db.add(cobranca)
     db.commit()
     db.refresh(cobranca)
