@@ -9,8 +9,78 @@ from . import models, schemas
 # Regras de negócio do sistema de cobrança, separadas das rotas (app/api.py)
 # para poder testar/reutilizar sem depender do FastAPI.
 
+# Modalidades que disputam o mesmo horário/professor e por isso não podem
+# cair no mesmo dia da semana para alunos diferentes. Modalidades fora
+# dessas listas (ex.: Natação, Musculação) não têm essa restrição.
+GRUPOS_EXCLUSIVOS_MODALIDADE = [
+    frozenset({"Boxe", "Jiu-jitsu"}),
+    frozenset({"Pilates", "Yoga"}),
+    frozenset({"Aeróbico", "Fit Dance"}),
+]
+
+DIA_SEMANA_LABELS = {
+    models.DiaSemana.SEGUNDA: "segunda-feira",
+    models.DiaSemana.TERCA: "terça-feira",
+    models.DiaSemana.QUARTA: "quarta-feira",
+    models.DiaSemana.QUINTA: "quinta-feira",
+    models.DiaSemana.SEXTA: "sexta-feira",
+    models.DiaSemana.SABADO: "sábado",
+    models.DiaSemana.DOMINGO: "domingo",
+}
+
+
+def _partes_modalidade(modalidade: str | None) -> set[str]:
+    return {p.strip() for p in (modalidade or "").split("/") if p.strip()}
+
+
+def _grupo_exclusivo(partes: set[str]) -> frozenset[str] | None:
+    for grupo in GRUPOS_EXCLUSIVOS_MODALIDADE:
+        if partes & grupo:
+            return grupo
+    return None
+
+
+def verificar_conflito_dia(
+    db: Session,
+    modalidade: str | None,
+    dia_semana: models.DiaSemana | None,
+    ignorar_aluno_id: int | None = None,
+) -> models.Aluno | None:
+    """Retorna o aluno ativo que já ocupa o mesmo dia dentro do mesmo grupo de
+    modalidades exclusivas (ex.: Boxe e Jiu-jitsu não podem cair no mesmo
+    dia), ou None se não houver conflito."""
+    if not dia_semana:
+        return None
+    grupo = _grupo_exclusivo(_partes_modalidade(modalidade))
+    if not grupo:
+        return None
+    candidatos = db.scalars(
+        select(models.Aluno).where(
+            models.Aluno.ativo.is_(True),
+            models.Aluno.dia_semana == dia_semana,
+        )
+    )
+    for candidato in candidatos:
+        if ignorar_aluno_id is not None and candidato.id == ignorar_aluno_id:
+            continue
+        if _partes_modalidade(candidato.modalidade) & grupo:
+            return candidato
+    return None
+
+
+def _erro_conflito(conflito: models.Aluno, dia_semana: models.DiaSemana) -> ValueError:
+    dia_label = DIA_SEMANA_LABELS.get(dia_semana, dia_semana.value)
+    return ValueError(
+        f"Conflito de agenda: {conflito.nome} já tem aula de "
+        f"{conflito.modalidade} na {dia_label}. Escolha outro dia."
+    )
+
 
 def criar_aluno(db: Session, dados: schemas.AlunoCreate) -> models.Aluno:
+    if dados.dia_semana:
+        conflito = verificar_conflito_dia(db, dados.modalidade, dados.dia_semana)
+        if conflito:
+            raise _erro_conflito(conflito, dados.dia_semana)
     aluno = models.Aluno(**dados.model_dump())
     db.add(aluno)
     db.commit()
@@ -32,7 +102,16 @@ def obter_aluno(db: Session, aluno_id: int) -> models.Aluno | None:
 def atualizar_aluno(
     db: Session, aluno: models.Aluno, dados: schemas.AlunoUpdate
 ) -> models.Aluno:
-    for campo, valor in dados.model_dump(exclude_unset=True).items():
+    alteracoes = dados.model_dump(exclude_unset=True)
+    modalidade_efetiva = alteracoes.get("modalidade", aluno.modalidade)
+    dia_semana_efetivo = alteracoes.get("dia_semana", aluno.dia_semana)
+    if dia_semana_efetivo:
+        conflito = verificar_conflito_dia(
+            db, modalidade_efetiva, dia_semana_efetivo, ignorar_aluno_id=aluno.id
+        )
+        if conflito:
+            raise _erro_conflito(conflito, dia_semana_efetivo)
+    for campo, valor in alteracoes.items():
         setattr(aluno, campo, valor)
     db.commit()
     db.refresh(aluno)

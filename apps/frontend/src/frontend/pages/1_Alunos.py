@@ -1,3 +1,5 @@
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 from frontend.api.cliente import (
@@ -25,6 +27,91 @@ STATUS_LABELS = {
     "atrasado": "Atrasadas",
     "inadimplente": "Inadimplentes",
 }
+
+# Lista padronizada de modalidades, levantada a partir dos valores já usados
+# na base real. Mantém o cadastro consistente (evita "musculação" vs
+# "Musculação" como categorias diferentes no gráfico de faturamento).
+MODALIDADES_PADRAO = [
+    "Musculação",
+    "Natação",
+    "Aeróbico",
+    "Pilates",
+    "Jiu-jitsu",
+    "Fit Dance",
+    "Boxe",
+    "Yoga",
+    "Crossfit",
+    "Funcional",
+]
+_MODALIDADES_PADRAO_LOWER = {m.lower(): m for m in MODALIDADES_PADRAO}
+
+# Turno de frequência do aluno — usado para cruzar matrículas/faturamento
+# por horário (ver página de Métricas).
+TURNO_LABELS = {
+    "manha": "Manhã (06h-12h)",
+    "tarde": "Tarde (12h-18h)",
+    "noite": "Noite (18h-00h)",
+}
+TURNO_LABELS_INVERSO = {label: valor for valor, label in TURNO_LABELS.items()}
+TURNO_OPCOES = ["Não informado", *list(TURNO_LABELS.values())]
+
+
+def turno_para_opcao(valor: str | None) -> str:
+    return TURNO_LABELS.get(valor or "", "Não informado")
+
+
+def opcao_para_turno(opcao: str) -> str | None:
+    return TURNO_LABELS_INVERSO.get(opcao)
+
+
+# Dia da semana da aula — algumas modalidades disputam o mesmo horário/
+# professor e por isso não podem cair no mesmo dia (ver
+# backend.crud.GRUPOS_EXCLUSIVOS_MODALIDADE); a validação de conflito roda
+# no backend, aqui é só a lista de opções do formulário.
+DIA_SEMANA_LABELS = {
+    "segunda": "Segunda-feira",
+    "terca": "Terça-feira",
+    "quarta": "Quarta-feira",
+    "quinta": "Quinta-feira",
+    "sexta": "Sexta-feira",
+    "sabado": "Sábado",
+    "domingo": "Domingo",
+}
+DIA_SEMANA_LABELS_INVERSO = {label: valor for valor, label in DIA_SEMANA_LABELS.items()}
+DIA_SEMANA_OPCOES = ["Não informado", *list(DIA_SEMANA_LABELS.values())]
+
+
+def dia_semana_para_opcao(valor: str | None) -> str:
+    return DIA_SEMANA_LABELS.get(valor or "", "Não informado")
+
+
+def opcao_para_dia_semana(opcao: str) -> str | None:
+    return DIA_SEMANA_LABELS_INVERSO.get(opcao)
+
+
+def dividir_modalidade(valor: str | None) -> tuple[list[str], str]:
+    """Separa um valor salvo (ex.: 'Pilates/Musculação') nas modalidades já
+    conhecidas da lista padrão e no restante em texto livre (cadastros
+    antigos com nomes fora do padrão)."""
+    if not valor:
+        return [], ""
+    partes = [p.strip() for p in valor.split("/") if p.strip()]
+    conhecidas, outras = [], []
+    for parte in partes:
+        padrao = _MODALIDADES_PADRAO_LOWER.get(parte.lower())
+        if padrao and padrao not in conhecidas:
+            conhecidas.append(padrao)
+        else:
+            outras.append(parte)
+    return conhecidas, "/".join(outras)
+
+
+def juntar_modalidade(selecionadas: list[str], outra: str) -> str | None:
+    partes = list(selecionadas)
+    if outra and outra.strip():
+        partes.append(outra.strip())
+    return "/".join(partes) if partes else None
+
 
 st.set_page_config(
     page_title="Gestão de Alunos - PagControl",
@@ -55,9 +142,12 @@ def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
         "ID",
         "Nome",
         "Modalidade",
+        "Turno",
+        "Dia da semana",
         "Mensalidade",
         "Vencimento",
         "Matrícula",
+        "Nascimento",
         "Status",
     ]
     if not dados:
@@ -70,14 +160,18 @@ def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
                 "ID": aluno["id"],
                 "Nome": aluno["nome"],
                 "Modalidade": aluno.get("modalidade") or "Não informada",
+                "Turno": turno_para_opcao(aluno.get("turno")),
+                "Dia da semana": dia_semana_para_opcao(aluno.get("dia_semana")),
                 "Mensalidade": float(aluno["valor_mensalidade"]),
                 "Vencimento": aluno["dia_vencimento"],
                 "Matrícula": aluno["data_matricula"],
+                "Nascimento": aluno.get("data_nascimento"),
                 "Status": "Ativo" if aluno["ativo"] else "Inativo",
             }
         )
     df = pd.DataFrame(registros, columns=colunas)
     df["Matrícula"] = pd.to_datetime(df["Matrícula"]).dt.date
+    df["Nascimento"] = pd.to_datetime(df["Nascimento"]).dt.date
     return df
 
 
@@ -132,9 +226,21 @@ with cadastro_tab:
                 "Nome completo *",
                 placeholder="Ex.: Maria Souza Oliveira",
             )
-            modalidade = st.text_input(
-                "Modalidade",
-                placeholder="Ex.: Musculação",
+            data_nascimento = st.date_input(
+                "Data de nascimento",
+                value=None,
+                min_value=date(1900, 1, 1),
+                max_value=date.today(),
+                format="DD/MM/YYYY",
+            )
+            modalidade_selecionada = st.multiselect(
+                "Modalidade(s)",
+                options=MODALIDADES_PADRAO,
+                placeholder="Selecione uma ou mais modalidades",
+            )
+            modalidade_outra = st.text_input(
+                "Outra modalidade (se não estiver na lista)",
+                placeholder="Ex.: Spinning",
             )
         with col2:
             valor_mensalidade = st.number_input(
@@ -151,6 +257,8 @@ with cadastro_tab:
                 value=10,
                 step=1,
             )
+            turno_opcao = st.selectbox("Turno", options=TURNO_OPCOES)
+            dia_semana_opcao = st.selectbox("Dia da semana", options=DIA_SEMANA_OPCOES)
 
         cadastrar = st.form_submit_button("Cadastrar aluno", width="stretch")
 
@@ -163,9 +271,16 @@ with cadastro_tab:
                 aluno_criado = criar_aluno(
                     {
                         "nome": nome_limpo,
-                        "modalidade": modalidade.strip() or None,
+                        "modalidade": juntar_modalidade(
+                            modalidade_selecionada, modalidade_outra
+                        ),
                         "valor_mensalidade": float(valor_mensalidade),
                         "dia_vencimento": int(dia_vencimento),
+                        "turno": opcao_para_turno(turno_opcao),
+                        "dia_semana": opcao_para_dia_semana(dia_semana_opcao),
+                        "data_nascimento": (
+                            data_nascimento.isoformat() if data_nascimento else None
+                        ),
                     }
                 )
                 aluno_id = aluno_criado["id"]
@@ -230,6 +345,10 @@ with gestao_tab:
                     "Matrícula",
                     format="DD/MM/YYYY",
                 ),
+                "Nascimento": st.column_config.DateColumn(
+                    "Nascimento",
+                    format="DD/MM/YYYY",
+                ),
             },
         )
 
@@ -251,9 +370,27 @@ with gestao_tab:
             edit_col1, edit_col2 = st.columns(2, gap="large")
             with edit_col1:
                 nome_editado = st.text_input("Nome completo", value=selecionado["nome"])
-                modalidade_editada = st.text_input(
-                    "Modalidade",
-                    value=selecionado.get("modalidade") or "",
+                nascimento_atual = selecionado.get("data_nascimento")
+                data_nascimento_editada = st.date_input(
+                    "Data de nascimento",
+                    value=date.fromisoformat(nascimento_atual)
+                    if nascimento_atual
+                    else None,
+                    min_value=date(1900, 1, 1),
+                    max_value=date.today(),
+                    format="DD/MM/YYYY",
+                )
+                conhecidas_atuais, outra_atual = dividir_modalidade(
+                    selecionado.get("modalidade")
+                )
+                modalidade_selecionada_editada = st.multiselect(
+                    "Modalidade(s)",
+                    options=MODALIDADES_PADRAO,
+                    default=conhecidas_atuais,
+                )
+                modalidade_outra_editada = st.text_input(
+                    "Outra modalidade (se não estiver na lista)",
+                    value=outra_atual,
                 )
             with edit_col2:
                 valor_editado = st.number_input(
@@ -270,6 +407,20 @@ with gestao_tab:
                     value=int(selecionado["dia_vencimento"]),
                     step=1,
                 )
+                turno_opcao_editada = st.selectbox(
+                    "Turno",
+                    options=TURNO_OPCOES,
+                    index=TURNO_OPCOES.index(
+                        turno_para_opcao(selecionado.get("turno"))
+                    ),
+                )
+                dia_semana_opcao_editada = st.selectbox(
+                    "Dia da semana",
+                    options=DIA_SEMANA_OPCOES,
+                    index=DIA_SEMANA_OPCOES.index(
+                        dia_semana_para_opcao(selecionado.get("dia_semana"))
+                    ),
+                )
 
             salvar = st.form_submit_button("Salvar alterações", width="stretch")
 
@@ -282,9 +433,20 @@ with gestao_tab:
                         aluno_id,
                         {
                             "nome": nome_editado.strip(),
-                            "modalidade": modalidade_editada.strip() or None,
+                            "modalidade": juntar_modalidade(
+                                modalidade_selecionada_editada, modalidade_outra_editada
+                            ),
                             "valor_mensalidade": float(valor_editado),
                             "dia_vencimento": int(vencimento_editado),
+                            "turno": opcao_para_turno(turno_opcao_editada),
+                            "dia_semana": opcao_para_dia_semana(
+                                dia_semana_opcao_editada
+                            ),
+                            "data_nascimento": (
+                                data_nascimento_editada.isoformat()
+                                if data_nascimento_editada
+                                else None
+                            ),
                         },
                     )
                 except APIError as exc:
