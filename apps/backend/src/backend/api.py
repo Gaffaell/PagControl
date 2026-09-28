@@ -29,7 +29,10 @@ app = FastAPI(title="Sistema de Cobrança - PagControl", lifespan=lifespan)
 
 @app.post("/alunos", response_model=schemas.AlunoOut, status_code=201)
 def criar_aluno(dados: schemas.AlunoCreate, db: Session = Depends(get_db)):
-    return crud.criar_aluno(db, dados)
+    try:
+        return crud.criar_aluno(db, dados)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @app.get("/alunos", response_model=list[schemas.AlunoOut])
@@ -52,7 +55,10 @@ def atualizar_aluno(
     aluno = crud.obter_aluno(db, aluno_id)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
-    return crud.atualizar_aluno(db, aluno, dados)
+    try:
+        return crud.atualizar_aluno(db, aluno, dados)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @app.delete("/alunos/{aluno_id}", status_code=204)
