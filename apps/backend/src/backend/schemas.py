@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from .models import FormaPagamento, StatusCobranca
+from .models import DiaSemana, FormaPagamento, StatusCobranca, Turno
 
 # Schemas Pydantic: validam o que entra/sai da API, separados dos modelos
 # do banco (app/models.py) para não expor campos internos sem querer.
@@ -13,6 +13,9 @@ class AlunoCreate(BaseModel):
     valor_mensalidade: float
     dia_vencimento: int
     modalidade: str | None = None
+    turno: Turno | None = None
+    dia_semana: DiaSemana | None = None
+    data_nascimento: date | None = None
 
 
 class AlunoUpdate(BaseModel):
@@ -20,6 +23,9 @@ class AlunoUpdate(BaseModel):
     valor_mensalidade: float | None = None
     dia_vencimento: int | None = None
     modalidade: str | None = None
+    turno: Turno | None = None
+    dia_semana: DiaSemana | None = None
+    data_nascimento: date | None = None
     ativo: bool | None = None
     # Campos de contato/endereço: editados só pela tela de Admin.
     email: str | None = None
@@ -40,7 +46,10 @@ class AlunoOut(BaseModel):
     valor_mensalidade: float
     dia_vencimento: int
     modalidade: str | None
+    turno: Turno | None
+    dia_semana: DiaSemana | None
     data_matricula: date
+    data_nascimento: date | None
     ativo: bool
     email: str | None
     telefone: str | None
