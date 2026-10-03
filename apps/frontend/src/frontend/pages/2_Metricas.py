@@ -7,6 +7,7 @@ from frontend.api.cliente import APIError, listar_alunos, listar_cobrancas
 from frontend.ui import (
     api_status,
     apply_theme,
+    formatar_moeda,
     metric_card,
     page_header,
     section_title,
@@ -46,10 +47,10 @@ page_header(
     ),
 )
 
-
-def formatar_moeda(valor: float) -> str:
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
+if st.sidebar.button("🔄 Atualizar dados", width="stretch"):
+    listar_alunos.clear()
+    listar_cobrancas.clear()
+    st.rerun()
 
 try:
     alunos = listar_alunos(False)

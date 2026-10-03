@@ -15,6 +15,7 @@ from frontend.api.cliente import (
 from frontend.ui import (
     api_status,
     apply_theme,
+    formatar_moeda,
     metric_card,
     page_header,
     section_title,
@@ -131,10 +132,6 @@ page_header(
         "a API do PagControl."
     ),
 )
-
-
-def formatar_moeda(valor: float) -> str:
-    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
@@ -291,6 +288,8 @@ with cadastro_tab:
                 st.success(
                     f"Aluno **{aluno_criado['nome']}** cadastrado e persistido com sucesso."
                 )
+                listar_alunos.clear()
+                listar_cobrancas.clear()
                 st.rerun()
 
 with gestao_tab:
@@ -455,6 +454,7 @@ with gestao_tab:
                     st.success(
                         f"Dados de **{atualizado['nome']}** atualizados com sucesso."
                     )
+                    listar_alunos.clear()
                     st.rerun()
 
         acao_status = (
@@ -486,6 +486,7 @@ with gestao_tab:
                 st.success(
                     f"Matrícula de **{selecionado['nome']}** {mensagem} com sucesso."
                 )
+                listar_alunos.clear()
                 st.rerun()
 
 section_title("Registro de pagamentos")
@@ -615,4 +616,5 @@ with pagamento_tab:
                         f"Pagamento da cobrança **#{atualizado['id']}** de "
                         f"**{selecionado['nome']}** registrado com sucesso."
                     )
+                    listar_cobrancas.clear()
                     st.rerun()
