@@ -377,3 +377,8 @@ def api_status(online: bool = True) -> None:
         </div>
         """,
     )
+
+
+def formatar_moeda(valor: float) -> str:
+    """Formata valores numéricos para o padrão de moeda brasileiro (R$ X.XXX,XX)."""
+    return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")

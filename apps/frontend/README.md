@@ -24,7 +24,12 @@ O aplicativo estará disponível em `http://localhost:8501`.
 ```
 src/frontend/
   app.py                    → Painel principal / Dashboard PagControl
+  ui.py                     → Tema visual e componentes compartilhados
+  api/
+    cliente.py              → Cliente HTTP com suporte a cache Streamlit
   pages/
     1_Alunos.py             → Gestão e cadastro de alunos
     2_Metricas.py           → Indicadores de inadimplência e receita
+    3_Admin.py              → Contato do aluno e régua de cobrança
 ```
+
