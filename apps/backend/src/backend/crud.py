@@ -171,16 +171,6 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
         valor=aluno.valor_mensalidade,
         data_vencimento=vencimento,
     )
-    venceu = db.scalar(
-        select(models.Cobranca).where(
-            models.Cobranca.aluno_id == aluno.id,
-            models.Cobranca.status.in_(
-                [models.StatusCobranca.ATRASADO, models.StatusCobranca.INADIMPLENTE]
-            ),
-        )
-    )
-    if venceu:
-        return venceu
     db.add(cobranca)
     db.commit()
     db.refresh(cobranca)
@@ -188,7 +178,7 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
 
 
 def gerar_cobranca_para_competencia(
-    db: Session, aluno: models.Aluno, ano: int, mes: int
+    db: Session, aluno: models.Aluno, ano: int, mes: int, valor_de_juros: float = 0.0
 ) -> models.Cobranca:
     """Gera a cobrança de uma competência específica sem duplicá-la.
 
@@ -202,6 +192,8 @@ def gerar_cobranca_para_competencia(
             models.Cobranca.competencia == competencia,
         )
     )
+    if valor_de_juros is None:
+        valor_de_juros = 0.0
     if existente:
         return existente
 
@@ -212,10 +204,11 @@ def gerar_cobranca_para_competencia(
 
     ultimo_dia_do_mes = calendar.monthrange(ano_vencimento, mes_vencimento)[1]
     dia_vencimento = min(aluno.dia_vencimento, ultimo_dia_do_mes)
+    valor_total = round(float(aluno.valor_mensalidade) + float(valor_de_juros), 2)
     cobranca = models.Cobranca(
         aluno_id=aluno.id,
         competencia=competencia,
-        valor=aluno.valor_mensalidade,
+        valor=valor_total,
         data_vencimento=date(ano_vencimento, mes_vencimento, dia_vencimento),
     )
     db.add(cobranca)

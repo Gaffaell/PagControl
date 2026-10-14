@@ -101,7 +101,11 @@ class Cobranca(Base):
     valor: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     data_vencimento: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[StatusCobranca] = mapped_column(
-        Enum(StatusCobranca), default=StatusCobranca.PENDENTE
+        Enum(
+            StatusCobranca,
+            values_callable=lambda enum_type: [item.value for item in enum_type],
+        ),
+        default=StatusCobranca.PENDENTE,
     )
     data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
     forma_pagamento: Mapped[FormaPagamento | None] = mapped_column(
