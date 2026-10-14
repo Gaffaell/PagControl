@@ -101,7 +101,11 @@ class Cobranca(Base):
     valor: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     data_vencimento: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[StatusCobranca] = mapped_column(
-        Enum(StatusCobranca), default=StatusCobranca.PENDENTE
+        Enum(
+            StatusCobranca,
+            values_callable=lambda enum_type: [item.value for item in enum_type],
+        ),
+        default=StatusCobranca.PENDENTE,
     )
     data_pagamento: Mapped[date | None] = mapped_column(Date, nullable=True)
     forma_pagamento: Mapped[FormaPagamento | None] = mapped_column(
@@ -125,6 +129,7 @@ class ConfiguracaoRegua(Base):
     # suficiente para o único caso de uso (poucos intervalos, sem edição
     # frequente), evita uma tabela extra só para isso.
     dias_cobranca_atraso: Mapped[str] = mapped_column(String(50), default="3,7")
+    porcentagem_juros_por_dia: Mapped[str] = mapped_column(String(50), default="0")
 
     def lista_dias_cobranca_atraso(self) -> list[int]:
         return [int(d) for d in self.dias_cobranca_atraso.split(",") if d]

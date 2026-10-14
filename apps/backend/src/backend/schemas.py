@@ -66,6 +66,7 @@ class ConfiguracaoReguaOut(BaseModel):
     dias_lembrete_antes: int
     dias_aviso_vencimento: int
     dias_cobranca_atraso: str
+    porcentagem_juros_por_dia: str
 
 
 class ConfiguracaoReguaUpdate(BaseModel):
@@ -73,6 +74,7 @@ class ConfiguracaoReguaUpdate(BaseModel):
     dias_aviso_vencimento: int | None = None
     # Lista de dias separada por vírgula, ex.: "3,7".
     dias_cobranca_atraso: str | None = None
+    porcentagem_juros_por_dia: str | None = None
 
 
 class CobrancaOut(BaseModel):
