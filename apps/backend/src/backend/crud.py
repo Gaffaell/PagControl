@@ -183,18 +183,35 @@ def gerar_cobranca_para_competencia(
     """Gera a cobrança de uma competência específica sem duplicá-la.
 
     A competência é o mês cobrado, mas a data de vencimento fica no mês
-    seguinte para o calendário de cobrança do sistema.
+    seguinte para o calendário de cobrança do sistema. Se a cobrança da
+    competência já existir e ainda não tiver sido paga, o valor é
+    recalculado com o juros informado (valor_de_juros é recomputado a cada
+    chamada e cresce dia a dia enquanto o aluno estiver em atraso).
     """
     competencia = f"{ano:04d}-{mes:02d}"
+    if valor_de_juros is None:
+        valor_de_juros = 0.0
+
     existente = db.scalar(
         select(models.Cobranca).where(
             models.Cobranca.aluno_id == aluno.id,
             models.Cobranca.competencia == competencia,
         )
     )
-    if valor_de_juros is None:
-        valor_de_juros = 0.0
     if existente:
+        # Bug corrigido: antes, quando a cobrança do mês já existia (o caso
+        # comum, já que o lifespan em api.py roda isso a cada subida do
+        # servidor), a função retornava a cobrança sem aplicar o
+        # valor_de_juros recém-calculado — o juros de atraso era calculado
+        # e descartado silenciosamente, nunca aparecendo pro aluno. Agora,
+        # se ainda não foi paga, o valor é atualizado para refletir o juros
+        # atual a cada execução.
+        if existente.status != models.StatusCobranca.PAGO:
+            novo_valor = round(float(aluno.valor_mensalidade) + float(valor_de_juros), 2)
+            if novo_valor != float(existente.valor):
+                existente.valor = novo_valor
+                db.commit()
+                db.refresh(existente)
         return existente
 
     ano_vencimento, mes_vencimento = ano, mes + 1
