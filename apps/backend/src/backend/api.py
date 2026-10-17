@@ -22,6 +22,12 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         regua = crud.obter_configuracao_regua(db)
+        # Referência para o valor de porcentagem_juros_por_dia: na ausência de
+        # taxa de mora pactuada em contrato, o art. 406 do Código Civil remete
+        # à taxa legal (usada por analogia como 1% ao mês, art. 161, §1º do
+        # CTN) e o art. 52, §1º do CDC limita a multa de mora a 2% sobre o
+        # valor da parcela em relações de consumo. 1% a.m. equivale a
+        # aproximadamente 0,033% ao dia, que é o valor padrão esperado aqui.
         taxa_diaria = 0.0
         if regua and regua.porcentagem_juros_por_dia:
             try:
