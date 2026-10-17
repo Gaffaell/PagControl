@@ -207,9 +207,7 @@ def gerar_cobranca_para_competencia(
         # se ainda não foi paga, o valor é atualizado para refletir o juros
         # atual a cada execução.
         if existente.status != models.StatusCobranca.PAGO:
-            novo_valor = round(
-                float(aluno.valor_mensalidade) + float(valor_de_juros), 2
-            )
+            novo_valor = round(float(aluno.valor_mensalidade) + float(valor_de_juros), 2)
             if novo_valor != float(existente.valor):
                 existente.valor = novo_valor
                 db.commit()
