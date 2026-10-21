@@ -1,7 +1,7 @@
 import calendar
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import models, schemas
@@ -177,63 +177,109 @@ def gerar_cobranca(db: Session, aluno: models.Aluno) -> models.Cobranca:
     return cobranca
 
 
-def gerar_cobranca_para_competencia(
-    db: Session, aluno: models.Aluno, ano: int, mes: int, valor_de_juros: float = 0.0
-) -> models.Cobranca:
-    """Gera a cobrança de uma competência específica sem duplicá-la.
+def _taxa_diaria(regua: models.ConfiguracaoRegua | None) -> float:
+    """Converte porcentagem_juros_por_dia (texto, ex.: "0,033") em fração diária.
 
-    A competência é o mês cobrado, mas a data de vencimento fica no mês
-    seguinte para o calendário de cobrança do sistema. Se a cobrança da
-    competência já existir e ainda não tiver sido paga, o valor é
-    recalculado com o juros informado (valor_de_juros é recomputado a cada
-    chamada e cresce dia a dia enquanto o aluno estiver em atraso).
+    Referência para o valor configurado: na ausência de taxa de mora pactuada
+    em contrato, o art. 406 do Código Civil remete à taxa legal (usada por
+    analogia como 1% ao mês, art. 161, §1º do CTN) e o art. 52, §1º do CDC
+    limita a multa de mora a 2% sobre o valor da parcela em relações de
+    consumo. 1% a.m. equivale a aproximadamente 0,033% ao dia, que é o valor
+    padrão esperado aqui.
     """
-    competencia = f"{ano:04d}-{mes:02d}"
-    if valor_de_juros is None:
-        valor_de_juros = 0.0
+    if not regua or not regua.porcentagem_juros_por_dia:
+        return 0.0
+    try:
+        texto = str(regua.porcentagem_juros_por_dia).replace(",", ".").strip()
+        return float(texto) / 100.0 if texto else 0.0
+    except ValueError:
+        return 0.0
 
-    existente = db.scalar(
-        select(models.Cobranca).where(
-            models.Cobranca.aluno_id == aluno.id,
-            models.Cobranca.competencia == competencia,
-        )
-    )
-    if existente:
-        # Bug corrigido: antes, quando a cobrança do mês já existia (o caso
-        # comum, já que o lifespan em api.py roda isso a cada subida do
-        # servidor), a função retornava a cobrança sem aplicar o
-        # valor_de_juros recém-calculado — o juros de atraso era calculado
-        # e descartado silenciosamente, nunca aparecendo pro aluno. Agora,
-        # se ainda não foi paga, o valor é atualizado para refletir o juros
-        # atual a cada execução.
-        if existente.status != models.StatusCobranca.PAGO:
-            novo_valor = round(
-                float(aluno.valor_mensalidade) + float(valor_de_juros), 2
+
+def gerar_cobrancas_do_mes(db: Session, hoje: date) -> None:
+    """Garante a cobrança do mês corrente de todos os alunos ativos, já com o
+    juros composto sobre as faturas em atraso/inadimplentes.
+
+    Roda a cada subida do servidor, por isso é feita em lote (poucas
+    consultas, uma única transação): consultar aluno por aluno multiplicava as
+    idas ao banco — e a transferência de rede cobrada pela Neon — pelo número
+    de alunos. Idempotente: não duplica a cobrança da competência; se ela já
+    existir e ainda não tiver sido paga, o valor é atualizado com o juros
+    atual (antes o juros era calculado e descartado quando a cobrança já
+    existia).
+    """
+    competencia = f"{hoje.year:04d}-{hoje.month:02d}"
+    taxa_diaria = _taxa_diaria(obter_configuracao_regua(db))
+
+    alunos = db.execute(
+        select(
+            models.Aluno.id,
+            models.Aluno.valor_mensalidade,
+            models.Aluno.dia_vencimento,
+        ).where(models.Aluno.ativo.is_(True))
+    ).all()
+
+    existentes: dict[int, tuple[int, object, models.StatusCobranca]] = {}
+    for cobranca_id, aluno_id, valor, status in db.execute(
+        select(
+            models.Cobranca.id,
+            models.Cobranca.aluno_id,
+            models.Cobranca.valor,
+            models.Cobranca.status,
+        ).where(models.Cobranca.competencia == competencia)
+    ):
+        existentes.setdefault(aluno_id, (cobranca_id, valor, status))
+
+    juros_por_aluno: dict[int, float] = {}
+    if taxa_diaria > 0:
+        vencidas = db.execute(
+            select(
+                models.Cobranca.aluno_id,
+                models.Cobranca.valor,
+                models.Cobranca.data_vencimento,
             )
-            if novo_valor != float(existente.valor):
-                existente.valor = novo_valor
-                db.commit()
-                db.refresh(existente)
-        return existente
+            .join(models.Aluno, models.Aluno.id == models.Cobranca.aluno_id)
+            .where(
+                models.Aluno.ativo.is_(True),
+                models.Cobranca.status.in_(
+                    [models.StatusCobranca.ATRASADO, models.StatusCobranca.INADIMPLENTE]
+                ),
+            )
+        )
+        for aluno_id, valor, vencimento in vencidas:
+            dias_de_atraso = (hoje - vencimento).days
+            if dias_de_atraso > 0:
+                juros_por_aluno[aluno_id] = juros_por_aluno.get(aluno_id, 0.0) + float(
+                    valor
+                ) * ((1.0 + taxa_diaria) ** dias_de_atraso - 1.0)
 
-    ano_vencimento, mes_vencimento = ano, mes + 1
-    if mes_vencimento > 12:
-        mes_vencimento = 1
-        ano_vencimento += 1
+    novas: list[models.Cobranca] = []
+    atualizacoes: list[dict[str, object]] = []
+    for aluno_id, mensalidade, dia_vencimento in alunos:
+        juros = round(juros_por_aluno.get(aluno_id, 0.0), 2)
+        valor_total = round(float(mensalidade) + juros, 2)
+        existente = existentes.get(aluno_id)
+        if existente:
+            cobranca_id, valor_atual, status = existente
+            if status != models.StatusCobranca.PAGO and valor_total != float(
+                valor_atual
+            ):
+                atualizacoes.append({"id": cobranca_id, "valor": valor_total})
+        else:
+            _, vencimento = _proxima_competencia_e_vencimento(dia_vencimento, hoje)
+            novas.append(
+                models.Cobranca(
+                    aluno_id=aluno_id,
+                    competencia=competencia,
+                    valor=valor_total,
+                    data_vencimento=vencimento,
+                )
+            )
 
-    ultimo_dia_do_mes = calendar.monthrange(ano_vencimento, mes_vencimento)[1]
-    dia_vencimento = min(aluno.dia_vencimento, ultimo_dia_do_mes)
-    valor_total = round(float(aluno.valor_mensalidade) + float(valor_de_juros), 2)
-    cobranca = models.Cobranca(
-        aluno_id=aluno.id,
-        competencia=competencia,
-        valor=valor_total,
-        data_vencimento=date(ano_vencimento, mes_vencimento, dia_vencimento),
-    )
-    db.add(cobranca)
+    if atualizacoes:
+        db.execute(update(models.Cobranca), atualizacoes)
+    db.add_all(novas)
     db.commit()
-    db.refresh(cobranca)
-    return cobranca
 
 
 def listar_cobrancas(
