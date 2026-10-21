@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 from datetime import date
 
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
@@ -14,61 +13,12 @@ from .init_db import init_db
 async def lifespan(app: FastAPI):
     # Garante que as tabelas existam ao subir o servidor (útil em bancos
     # novos, como um Neon recém-linkado, sem precisar rodar init_db.py à parte).
-
-    # Faz todas as as cobranças do mês corrente para os alunos ativos sempre que iniciar
-    # caso ainda não existam.
     init_db()
-    hoje = date.today()
+    # Gera a cobrança do mês corrente dos alunos ativos (se ainda não existir)
+    # e aplica o juros de atraso — em lote, ver crud.gerar_cobrancas_do_mes.
     db = SessionLocal()
     try:
-        regua = crud.obter_configuracao_regua(db)
-        # Referência para o valor de porcentagem_juros_por_dia: na ausência de
-        # taxa de mora pactuada em contrato, o art. 406 do Código Civil remete
-        # à taxa legal (usada por analogia como 1% ao mês, art. 161, §1º do
-        # CTN) e o art. 52, §1º do CDC limita a multa de mora a 2% sobre o
-        # valor da parcela em relações de consumo. 1% a.m. equivale a
-        # aproximadamente 0,033% ao dia, que é o valor padrão esperado aqui.
-        taxa_diaria = 0.0
-        if regua and regua.porcentagem_juros_por_dia:
-            try:
-                taxa_str = (
-                    str(regua.porcentagem_juros_por_dia).replace(",", ".").strip()
-                )
-                taxa_diaria = float(taxa_str) / 100.0 if taxa_str else 0.0
-            except ValueError:
-                taxa_diaria = 0.0
-
-        for aluno in crud.listar_alunos(db, apenas_ativos=True):
-            valor_de_juros = 0.0
-            vencidas = list(
-                db.scalars(
-                    select(models.Cobranca).where(
-                        models.Cobranca.aluno_id == aluno.id,
-                        models.Cobranca.status.in_(
-                            [
-                                models.StatusCobranca.ATRASADO,
-                                models.StatusCobranca.INADIMPLENTE,
-                            ]
-                        ),
-                    )
-                )
-            )
-            # NÂO ESTÀ FAZENDO NOVA COBRANCA, MESMO COM MENSALIDADE ATRADADA
-            if vencidas and taxa_diaria > 0:
-                for cobranca_vencida in vencidas:
-                    dias_de_atraso = max(
-                        0, (hoje - cobranca_vencida.data_vencimento).days
-                    )
-                    if dias_de_atraso > 0:
-                        valor_base = float(cobranca_vencida.valor)
-                        valor_de_juros += valor_base * (
-                            ((1.0 + taxa_diaria) ** dias_de_atraso) - 1.0
-                        )
-                valor_de_juros = round(valor_de_juros, 2)
-
-            crud.gerar_cobranca_para_competencia(
-                db, aluno, hoje.year, hoje.month, valor_de_juros=valor_de_juros
-            )
+        crud.gerar_cobrancas_do_mes(db, date.today())
     finally:
         db.close()
     yield

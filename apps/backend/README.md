@@ -8,8 +8,8 @@ API em FastAPI + SQLAlchemy para o sistema de cobrança recorrente da academia
 A partir da raiz do monorepo:
 
 ```bash
-# Executar a API com reload automático
-uv run --package backend uvicorn backend.api:app --reload
+# Executar a API com reload automático (vigiando só o código do backend)
+uv run --package backend uvicorn backend.api:app --reload --reload-dir apps/backend/src
 
 # Ou executar o CLI de resumo do banco de dados
 uv run --package backend backend
@@ -19,11 +19,11 @@ Ou entrando na pasta do workspace:
 
 ```bash
 cd apps/backend
-uv run uvicorn backend.api:app --reload
+uv run uvicorn backend.api:app --reload --reload-dir src
 ```
 
-Sem configuração extra, usa um SQLite local (`academia.db`, ignorado pelo Git).
-Para usar um banco Postgres na nuvem (ex.: [Neon](https://neon.tech)), configure `DATABASE_URL` no arquivo `.env` na raiz do projeto ou neste diretório.
+Sem configuração extra, usa um SQLite local (`academia.db`, ignorado pelo Git) — é o modo recomendado para desenvolver e testar, pois não consome a cota da Neon.
+Para usar um banco Postgres na nuvem (ex.: [Neon](https://neon.tech)), configure `DATABASE_URL` no arquivo `.env` na raiz do projeto ou neste diretório. Ver a seção *Banco de Dados* do README da raiz, incluindo os cuidados com a cota gratuita.
 
 Documentação interativa Swagger disponível em `http://127.0.0.1:8000/docs`.
 

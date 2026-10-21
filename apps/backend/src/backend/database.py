@@ -5,8 +5,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # .env.local é gerado automaticamente pelo CLI da Neon (neon link/config);
-# .env é para overrides manuais. Carregamos os dois, .env por último para
-# poder sobrescrever o que vier da Neon se necessário.
+# .env é para configuração manual. load_dotenv não sobrescreve variáveis já
+# definidas, então o que vem primeiro vence: .env.local tem prioridade e o
+# .env só preenche o que faltar.
 load_dotenv(".env.local")
 load_dotenv(".env")
 
