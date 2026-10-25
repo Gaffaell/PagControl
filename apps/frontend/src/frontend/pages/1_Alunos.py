@@ -8,19 +8,26 @@ from frontend.api.cliente import (
     criar_aluno,
     desativar_aluno,
     gerar_cobranca,
+    limpar_cache_metricas,
     listar_alunos,
     listar_cobrancas,
+    obter_detalhamento_metricas,
     registrar_pagamento,
 )
 from frontend.ui import (
     api_status,
     apply_theme,
+    formatar_inteiro,
     formatar_moeda,
-    metric_card,
+    formatar_moeda_inteira,
+    metric_grid,
     page_header,
+    paleta_atual,
     section_title,
     sidebar_brand,
 )
+
+LIMITE_PAGAMENTOS = 200
 
 STATUS_LABELS = {
     "pago": "Pagas",
@@ -118,7 +125,7 @@ st.set_page_config(
     page_title="Gestão de Alunos - PagControl",
     page_icon="👥",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 apply_theme()
@@ -174,7 +181,9 @@ def preparar_alunos(dados: list[dict]) -> pd.DataFrame:
 
 try:
     alunos = listar_alunos(False)
-    cobrancas = listar_cobrancas()
+    # Só as cobranças mais recentes (já com o nome do aluno): a tabela de
+    # pagamentos não precisa da carteira inteira.
+    detalhamento = obter_detalhamento_metricas(None, LIMITE_PAGAMENTOS)
 except APIError as exc:
     api_status(False)
     st.error(str(exc))
@@ -190,23 +199,27 @@ alunos_df = preparar_alunos(alunos)
 alunos_ativos = [aluno for aluno in alunos if aluno["ativo"]]
 receita_mensal = sum(float(aluno["valor_mensalidade"]) for aluno in alunos_ativos)
 
-metric1, metric2, metric3 = st.columns(3, gap="medium")
-with metric1:
-    metric_card("Alunos cadastrados", str(len(alunos)), "Dados persistidos na API")
-with metric2:
-    metric_card(
-        "Matrículas ativas",
-        str(len(alunos_ativos)),
-        "Situação atual",
-        accent="#1d4ed8",
-    )
-with metric3:
-    metric_card(
-        "Receita mensal prevista",
-        formatar_moeda(receita_mensal),
-        "Alunos ativos",
-        accent="#7c3aed",
-    )
+metric_grid(
+    [
+        {
+            "label": "Alunos cadastrados",
+            "value": formatar_inteiro(len(alunos)),
+            "delta": "Dados persistidos na API",
+        },
+        {
+            "label": "Matrículas ativas",
+            "value": formatar_inteiro(len(alunos_ativos)),
+            "delta": "Situação atual",
+            "accent": paleta_atual()["card_2"],
+        },
+        {
+            "label": "Receita mensal prevista",
+            "value": formatar_moeda_inteira(receita_mensal),
+            "delta": "Alunos ativos",
+            "accent": paleta_atual()["card_3"],
+        },
+    ]
+)
 
 cadastro_tab, gestao_tab, pagamento_tab = st.tabs(
     ["Cadastrar aluno", "Consultar e editar", "Registrar pagamento"]
@@ -290,6 +303,7 @@ with cadastro_tab:
                 )
                 listar_alunos.clear()
                 listar_cobrancas.clear()
+                limpar_cache_metricas()
                 st.rerun()
 
 with gestao_tab:
@@ -321,21 +335,24 @@ with gestao_tab:
     if filtro_status != "Todos":
         alunos_exibidos = alunos_exibidos[alunos_exibidos["Status"] == filtro_status]
 
-    st.caption(f"Exibindo {len(alunos_exibidos)} de {len(alunos_df)} registro(s).")
+    st.caption(
+        f"Exibindo {formatar_inteiro(len(alunos_exibidos))} de "
+        f"{formatar_inteiro(len(alunos_df))} registro(s)."
+    )
 
     if alunos_exibidos.empty:
         st.info("Nenhum aluno encontrado para os filtros selecionados.")
     else:
+        tabela_alunos = alunos_exibidos.copy()
+        tabela_alunos["Mensalidade"] = tabela_alunos["Mensalidade"].apply(
+            formatar_moeda
+        )
         st.dataframe(
-            alunos_exibidos,
+            tabela_alunos,
             width="stretch",
             hide_index=True,
             column_config={
                 "ID": st.column_config.NumberColumn("ID", format="%d"),
-                "Mensalidade": st.column_config.NumberColumn(
-                    "Mensalidade",
-                    format="R$ %.2f",
-                ),
                 "Vencimento": st.column_config.NumberColumn(
                     "Vencimento",
                     format="Dia %d",
@@ -490,21 +507,22 @@ with gestao_tab:
                 st.rerun()
 
 section_title("Registro de pagamentos")
-if not cobrancas:
+if not detalhamento["itens"]:
     st.caption("Nenhuma cobrança disponível para detalhamento.")
 else:
-    nomes_por_id = {aluno["id"]: aluno["nome"] for aluno in alunos}
+    if detalhamento["total"] > len(detalhamento["itens"]):
+        st.caption(
+            f"Mostrando as {formatar_inteiro(len(detalhamento['itens']))} cobranças "
+            f"mais recentes de {formatar_inteiro(detalhamento['total'])}. A lista completa está em Métricas."
+        )
     detalhes = pd.DataFrame(
         [
             {
                 "ID": cobranca["id"],
-                "Aluno": nomes_por_id.get(
-                    cobranca["aluno_id"],
-                    f"Aluno #{cobranca['aluno_id']}",
-                ),
+                "Aluno": cobranca["aluno_nome"] or f"Aluno #{cobranca['aluno_id']}",
                 "Competência": cobranca["competencia"],
                 "Vencimento": cobranca["data_vencimento"],
-                "Valor": float(cobranca["valor"]),
+                "Valor": formatar_moeda(float(cobranca["valor"])),
                 "Status": STATUS_LABELS.get(
                     cobranca["status"],
                     cobranca["status"].title(),
@@ -512,7 +530,7 @@ else:
                 "Pagamento": cobranca.get("data_pagamento"),
                 "Forma": (cobranca.get("forma_pagamento") or "—").upper(),
             }
-            for cobranca in cobrancas
+            for cobranca in detalhamento["itens"]
         ]
     )
     detalhes["Vencimento"] = pd.to_datetime(detalhes["Vencimento"]).dt.date
@@ -528,7 +546,6 @@ else:
                 "Vencimento", format="DD/MM/YYYY"
             ),
             "Pagamento": st.column_config.DateColumn("Pagamento", format="DD/MM/YYYY"),
-            "Valor": st.column_config.NumberColumn("Valor", format="R$ %.2f"),
         },
     )
 
@@ -549,10 +566,11 @@ with pagamento_tab:
             ),
         )
         selecionado = aluno_por_id[aluno_id]
+        # Busca só as cobranças do aluno escolhido (filtro feito no banco).
         cobrancas_do_aluno = [
             cobranca
-            for cobranca in cobrancas
-            if cobranca["aluno_id"] == aluno_id and cobranca["status"] != "pago"
+            for cobranca in listar_cobrancas(aluno_id)
+            if cobranca["status"] != "pago"
         ]
 
         if not cobrancas_do_aluno:
@@ -617,4 +635,5 @@ with pagamento_tab:
                         f"**{selecionado['nome']}** registrado com sucesso."
                     )
                     listar_cobrancas.clear()
+                    limpar_cache_metricas()
                     st.rerun()

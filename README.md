@@ -33,7 +33,8 @@ PagControl/
 │   │       └── pages/
 │   │           ├── 1_Alunos.py            # Gestão e cadastro de alunos
 │   │           ├── 2_Metricas.py          # Indicadores e inadimplência
-│   │           └── 3_Admin.py             # Contato/endereço do aluno e configuração da régua de cobrança
+│   │           ├── 3_Analise.py           # Faturamento por curso e perfil de quem paga
+│   │           └── 4_Admin.py             # Contato/endereço do aluno e configuração da régua de cobrança
 │   │
 │   └── analytics/                         # Módulo de Big Data (workspace: analytics)
 │       ├── pyproject.toml

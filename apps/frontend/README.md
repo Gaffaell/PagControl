@@ -30,6 +30,7 @@ src/frontend/
   pages/
     1_Alunos.py             → Gestão e cadastro de alunos
     2_Metricas.py           → Indicadores de inadimplência e receita
-    3_Admin.py              → Contato do aluno e régua de cobrança
+    3_Analise.py            → Cursos que mais faturam e perfil de quem mais paga
+    4_Admin.py              → Contato do aluno e régua de cobrança
 ```
 

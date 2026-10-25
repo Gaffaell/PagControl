@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import date
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from . import crud, models, schemas
@@ -124,3 +124,45 @@ def atualizar_configuracao_regua(
     if not regua:
         raise HTTPException(404, "Configuração da régua não encontrada")
     return crud.atualizar_configuracao_regua(db, regua, dados)
+
+
+@app.get("/metricas/resumo", response_model=schemas.ResumoMetricas)
+def resumo_metricas(
+    competencia: str | None = Query(None, pattern=r"^\d{4}(-\d{2})?$"),
+    db: Session = Depends(get_db),
+):
+    """Totais agrupados para a página de Métricas (opcionalmente de um mês)."""
+    return crud.resumo_metricas(db, competencia)
+
+
+@app.get("/metricas/insights", response_model=schemas.InsightsMetricas)
+def insights_metricas(
+    competencia: str | None = Query(None, pattern=r"^\d{4}(-\d{2})?$"),
+    db: Session = Depends(get_db),
+):
+    """Resumo analítico até o fim do período (mês ou ano) escolhido."""
+    return crud.insights_metricas(db, competencia)
+
+
+@app.get("/metricas/arrecadacao", response_model=schemas.AnaliseArrecadacao)
+def analise_arrecadacao(
+    competencia: str | None = Query(None, pattern=r"^\d{4}(-\d{2})?$"),
+    db: Session = Depends(get_db),
+):
+    """Valor cobrado e recebido por modalidade, faixa etária, turno e dia."""
+    return crud.analise_arrecadacao(db, competencia)
+
+
+@app.get("/metricas/vintage", response_model=schemas.CurvaVintage)
+def curva_vintage(db: Session = Depends(get_db)):
+    return crud.curva_vintage(db)
+
+
+@app.get("/metricas/detalhamento", response_model=schemas.DetalhamentoMetricas)
+def detalhamento_metricas(
+    competencia: str | None = Query(None, pattern=r"^\d{4}(-\d{2})?$"),
+    limite: int = Query(200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    """Cobranças mais recentes com o nome do aluno, limitadas a `limite`."""
+    return crud.detalhar_cobrancas(db, competencia, limite)
