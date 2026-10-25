@@ -59,15 +59,20 @@ def listar_alunos(apenas_ativos: bool = False) -> list[dict[str, Any]]:
 
 
 def criar_aluno(dados: dict[str, Any]) -> dict[str, Any]:
-    return _request("POST", "/alunos", json=dados)
+    resultado = _request("POST", "/alunos", json=dados)
+    limpar_cache_metricas()
+    return resultado
 
 
 def atualizar_aluno(aluno_id: int, dados: dict[str, Any]) -> dict[str, Any]:
-    return _request("PATCH", f"/alunos/{aluno_id}", json=dados)
+    resultado = _request("PATCH", f"/alunos/{aluno_id}", json=dados)
+    limpar_cache_metricas()
+    return resultado
 
 
 def desativar_aluno(aluno_id: int) -> None:
     _request("DELETE", f"/alunos/{aluno_id}")
+    limpar_cache_metricas()
 
 
 @st.cache_data
@@ -83,8 +88,57 @@ def listar_cobrancas(
     return _request("GET", "/cobrancas", params=params)
 
 
+@st.cache_data
+def obter_resumo_metricas(competencia: str | None = None) -> dict[str, Any]:
+    """Totais já agrupados no banco (página de Métricas)."""
+    params = {"competencia": competencia} if competencia else {}
+    return _request("GET", "/metricas/resumo", params=params)
+
+
+@st.cache_data
+def obter_detalhamento_metricas(
+    competencia: str | None = None, limite: int = 200
+) -> dict[str, Any]:
+    """Cobranças mais recentes com o nome do aluno, limitadas a `limite`."""
+    params: dict[str, Any] = {"limite": limite}
+    if competencia:
+        params["competencia"] = competencia
+    return _request("GET", "/metricas/detalhamento", params=params)
+
+
+@st.cache_data
+def obter_curva_vintage() -> dict[str, Any]:
+    """% acumulado de inadimplentes por mês de vida da conta, por safra."""
+    return _request("GET", "/metricas/vintage")
+
+
+@st.cache_data
+def obter_insights(competencia: str | None = None) -> dict[str, Any]:
+    """Resumo analítico: tendências por modalidade e alertas de inadimplência,
+    até o fim do mês/ano informado (ou da carteira inteira)."""
+    params = {"competencia": competencia} if competencia else {}
+    return _request("GET", "/metricas/insights", params=params)
+
+
+@st.cache_data
+def obter_arrecadacao(competencia: str | None = None) -> dict[str, Any]:
+    """Cobrado e recebido por modalidade, faixa etária, turno e dia da semana."""
+    params = {"competencia": competencia} if competencia else {}
+    return _request("GET", "/metricas/arrecadacao", params=params)
+
+
+def limpar_cache_metricas() -> None:
+    obter_arrecadacao.clear()
+    obter_resumo_metricas.clear()
+    obter_detalhamento_metricas.clear()
+    obter_curva_vintage.clear()
+    obter_insights.clear()
+
+
 def gerar_cobranca(aluno_id: int) -> dict[str, Any]:
-    return _request("POST", f"/alunos/{aluno_id}/cobrancas")
+    resultado = _request("POST", f"/alunos/{aluno_id}/cobrancas")
+    limpar_cache_metricas()
+    return resultado
 
 
 def registrar_pagamento(
@@ -95,11 +149,14 @@ def registrar_pagamento(
     dados: dict[str, Any] = {"forma_pagamento": forma_pagamento}
     if data_pagamento is not None:
         dados["data_pagamento"] = data_pagamento
-    return _request("POST", f"/cobrancas/{cobranca_id}/pagar", json=dados)
+    resultado = _request("POST", f"/cobrancas/{cobranca_id}/pagar", json=dados)
+    limpar_cache_metricas()
+    return resultado
 
 
 def atualizar_status_cobrancas() -> int:
     resultado = _request("POST", "/cobrancas/atualizar-status")
+    limpar_cache_metricas()
     return int(resultado["cobrancas_atualizadas"])
 
 

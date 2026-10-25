@@ -1,10 +1,21 @@
 import calendar
 from datetime import date
 
-from sqlalchemy import select, update
+from sqlalchemy import (
+    Date,
+    Integer,
+    case,
+    cast,
+    desc,
+    extract,
+    func,
+    literal,
+    select,
+    update,
+)
 from sqlalchemy.orm import Session
 
-from . import models, schemas
+from . import insights, models, schemas
 
 # Regras de negócio do sistema de cobrança, separadas das rotas (app/api.py)
 # para poder testar/reutilizar sem depender do FastAPI.
@@ -355,3 +366,379 @@ def atualizar_status_atrasos(db: Session) -> int:
     if atualizadas:
         db.commit()
     return atualizadas
+
+
+FAIXAS_ETARIAS = [
+    (0, 24, "Até 24"),
+    (25, 34, "25-34"),
+    (35, 44, "35-44"),
+    (45, 54, "45-54"),
+    (55, 64, "55-64"),
+    (65, 200, "65+"),
+]
+FAIXA_ETARIA_NAO_INFORMADA = "Não informada"
+ORDEM_FAIXAS_ETARIAS = [label for _, _, label in FAIXAS_ETARIAS] + [
+    FAIXA_ETARIA_NAO_INFORMADA
+]
+
+
+def _nascimento_limite(hoje: date, idade: int) -> date:
+    """Data de nascimento mais recente de quem já completou `idade` anos em
+    `hoje` (nascido nessa data ou antes tem `idade` anos ou mais)."""
+    try:
+        return hoje.replace(year=hoje.year - idade)
+    except ValueError:  # 29/02 em ano não bissexto
+        return hoje.replace(year=hoje.year - idade, day=28)
+
+
+def _faixa_etaria_sql(hoje: date):
+    """Faixa etária calculada no próprio banco, comparando a data de
+    nascimento com datas-limite (sem funções de data específicas de um
+    SGBD). As datas entram inline para o GROUP BY casar com o SELECT."""
+    nascimento = models.Aluno.data_nascimento
+
+    def limite(idade: int):
+        return literal(
+            _nascimento_limite(hoje, idade), type_=Date, literal_execute=True
+        )
+
+    casos = [
+        (nascimento.is_(None), FAIXA_ETARIA_NAO_INFORMADA),
+        (nascimento > limite(0), FAIXA_ETARIA_NAO_INFORMADA),
+    ]
+    casos += [
+        (nascimento > limite(maximo + 1), label) for _, maximo, label in FAIXAS_ETARIAS
+    ]
+    return case(*casos, else_=FAIXA_ETARIA_NAO_INFORMADA)
+
+
+def _filtro_periodo(periodo: str | None) -> list:
+    """Filtro por mês ("AAAA-MM") ou por ano inteiro ("AAAA"); sem período, nada."""
+    if not periodo:
+        return []
+    if len(periodo) == 4:
+        return [models.Cobranca.competencia.like(f"{periodo}-%")]
+    return [models.Cobranca.competencia == periodo]
+
+
+def resumo_metricas(
+    db: Session, competencia: str | None = None, hoje: date | None = None
+) -> dict:
+    """Totais para a página de Métricas, agrupados no banco.
+
+    Com `competencia`, só as cobranças desse mês entram nos agrupamentos;
+    a lista de competências, a contagem de alunos ativos, a receita prevista e
+    a evolução por competência (`por_competencia`) são sempre globais.
+    """
+    hoje = hoje or date.today()
+    filtro = _filtro_periodo(competencia)
+    quantidade = func.count(models.Cobranca.id)
+    valor = func.coalesce(func.sum(models.Cobranca.valor), 0)
+    com_aluno = models.Aluno.id == models.Cobranca.aluno_id
+
+    competencias = db.scalars(
+        select(models.Cobranca.competencia)
+        .distinct()
+        .order_by(desc(models.Cobranca.competencia))
+    ).all()
+    alunos_ativos, receita_prevista = db.execute(
+        select(
+            func.count(models.Aluno.id),
+            func.coalesce(func.sum(models.Aluno.valor_mensalidade), 0),
+        ).where(models.Aluno.ativo.is_(True))
+    ).one()
+
+    por_status = db.execute(
+        select(models.Cobranca.status, quantidade, valor)
+        .where(*filtro)
+        .group_by(models.Cobranca.status)
+    ).all()
+
+    # Evolução mensal: sempre global (os meses aparecem lado a lado no gráfico).
+    por_competencia = db.execute(
+        select(models.Cobranca.competencia, models.Cobranca.status, quantidade, valor)
+        .group_by(models.Cobranca.competencia, models.Cobranca.status)
+        .order_by(models.Cobranca.competencia)
+    ).all()
+
+    faixa = _faixa_etaria_sql(hoje)
+    por_faixa = db.execute(
+        select(faixa, models.Cobranca.status, quantidade, valor)
+        .select_from(models.Cobranca)
+        .outerjoin(models.Aluno, com_aluno)
+        .where(*filtro)
+        .group_by(faixa, models.Cobranca.status)
+    ).all()
+
+    por_modalidade = db.execute(
+        select(models.Aluno.modalidade, models.Cobranca.competencia, quantidade, valor)
+        .select_from(models.Cobranca)
+        .outerjoin(models.Aluno, com_aluno)
+        .where(*filtro)
+        .group_by(models.Aluno.modalidade, models.Cobranca.competencia)
+    ).all()
+
+    por_turno_dia = db.execute(
+        select(
+            models.Cobranca.competencia,
+            models.Aluno.turno,
+            models.Aluno.dia_semana,
+            valor,
+        )
+        .select_from(models.Cobranca)
+        .outerjoin(models.Aluno, com_aluno)
+        .where(*filtro)
+        .group_by(
+            models.Cobranca.competencia, models.Aluno.turno, models.Aluno.dia_semana
+        )
+    ).all()
+
+    return {
+        "competencias": list(competencias),
+        "ordem_faixas_etarias": ORDEM_FAIXAS_ETARIAS,
+        "alunos_ativos": alunos_ativos,
+        "receita_prevista": float(receita_prevista),
+        "por_status": [
+            {"status": s, "quantidade": q, "valor": float(v)} for s, q, v in por_status
+        ],
+        "por_faixa_etaria": [
+            {"faixa_etaria": f, "status": s, "quantidade": q, "valor": float(v)}
+            for f, s, q, v in por_faixa
+        ],
+        "por_modalidade": [
+            {"modalidade": m, "competencia": c, "quantidade": q, "valor": float(v)}
+            for m, c, q, v in por_modalidade
+        ],
+        "por_competencia": [
+            {"competencia": c, "status": s, "quantidade": q, "valor": float(v)}
+            for c, s, q, v in por_competencia
+        ],
+        "por_turno_dia": [
+            {"competencia": c, "turno": t, "dia_semana": d, "valor": float(v)}
+            for c, t, d, v in por_turno_dia
+        ],
+    }
+
+
+def analise_arrecadacao(
+    db: Session, periodo: str | None = None, hoje: date | None = None
+) -> dict:
+    """Perfil de quem paga: valor cobrado e valor recebido (cobranças pagas) por
+    modalidade, faixa etária, turno e dia da semana — uma linha por combinação.
+
+    `periodo` é "AAAA", "AAAA-MM" ou nada (carteira inteira). A página de
+    Análise soma as linhas conforme a característica que está mostrando.
+    """
+    hoje = hoje or date.today()
+    faixa = _faixa_etaria_sql(hoje)
+    pago = models.Cobranca.status == models.StatusCobranca.PAGO
+    linhas = db.execute(
+        select(
+            models.Aluno.modalidade,
+            faixa,
+            models.Aluno.turno,
+            models.Aluno.dia_semana,
+            func.coalesce(func.sum(models.Cobranca.valor), 0),
+            func.coalesce(func.sum(case((pago, models.Cobranca.valor), else_=0)), 0),
+            func.count(models.Cobranca.id),
+            func.count(func.distinct(models.Cobranca.aluno_id)),
+        )
+        .select_from(models.Cobranca)
+        .outerjoin(models.Aluno, models.Aluno.id == models.Cobranca.aluno_id)
+        .where(*_filtro_periodo(periodo))
+        .group_by(
+            models.Aluno.modalidade,
+            faixa,
+            models.Aluno.turno,
+            models.Aluno.dia_semana,
+        )
+    ).all()
+    return {
+        "ordem_faixas_etarias": ORDEM_FAIXAS_ETARIAS,
+        "linhas": [
+            {
+                "modalidade": modalidade,
+                "faixa_etaria": faixa_etaria,
+                "turno": turno,
+                "dia_semana": dia_semana,
+                "valor_cobrado": float(cobrado),
+                "valor_recebido": float(recebido),
+                "cobrancas": cobrancas,
+                "alunos": alunos,
+            }
+            for modalidade, faixa_etaria, turno, dia_semana, cobrado, recebido, cobrancas, alunos in linhas
+        ],
+    }
+
+
+def detalhar_cobrancas(
+    db: Session, competencia: str | None = None, limite: int = 200
+) -> dict:
+    """Cobranças mais recentes (competência e vencimento decrescentes) com o
+    nome do aluno, limitadas a `limite`, e o total que atende ao filtro."""
+    filtro = _filtro_periodo(competencia)
+    total = db.scalar(select(func.count(models.Cobranca.id)).where(*filtro)) or 0
+    linhas = db.execute(
+        select(models.Cobranca, models.Aluno.nome)
+        .outerjoin(models.Aluno, models.Aluno.id == models.Cobranca.aluno_id)
+        .where(*filtro)
+        .order_by(
+            desc(models.Cobranca.competencia),
+            desc(models.Cobranca.data_vencimento),
+            desc(models.Cobranca.id),
+        )
+        .limit(limite)
+    ).all()
+    itens = [
+        {
+            "id": c.id,
+            "aluno_id": c.aluno_id,
+            "aluno_nome": nome,
+            "competencia": c.competencia,
+            "valor": float(c.valor),
+            "data_vencimento": c.data_vencimento,
+            "status": c.status,
+            "data_pagamento": c.data_pagamento,
+            "forma_pagamento": c.forma_pagamento,
+        }
+        for c, nome in linhas
+    ]
+    return {"total": total, "itens": itens}
+
+
+MESES_VINTAGE = 12
+
+
+def curva_vintage(db: Session) -> dict:
+    """Curva de vintage: por safra (mês de matrícula) e mês de vida da conta, o
+    % ACUMULADO de alunos que já ficaram inadimplentes ao menos uma vez.
+
+    - mês de vida = diferença em meses entre a competência da cobrança e o mês
+      de matrícula (0 = mês da matrícula), limitado aos primeiros 12;
+    - inadimplente = cobrança com status `inadimplente` (a régua já separa
+      'atrasado', que ainda é recuperável);
+    - em cada mês só entram os alunos que têm cobrança naquele mês. Para um
+      mesmo aluno o indicador nunca desfaz (quem estreou inadimplente continua
+      contando), mas a curva da safra pode oscilar quando o conjunto de alunos
+      com cobrança muda de um mês para o outro (safras pequenas ou recentes).
+
+    A média geral pondera cada safra pelo número de alunos (soma de
+    inadimplentes dividida pela soma de alunos, mês a mês)."""
+    mes_da_cobranca = cast(
+        func.substr(models.Cobranca.competencia, 1, 4), Integer
+    ) * 12 + cast(func.substr(models.Cobranca.competencia, 6, 2), Integer)
+    ano_matricula = extract("year", models.Aluno.data_matricula)
+    mes_matricula = extract("month", models.Aluno.data_matricula)
+    mes_de_vida = mes_da_cobranca - (ano_matricula * 12 + mes_matricula)
+
+    linhas = (
+        select(
+            models.Cobranca.aluno_id.label("aluno_id"),
+            models.Cobranca.status.label("status"),
+            ano_matricula.label("ano"),
+            mes_matricula.label("mes"),
+            mes_de_vida.label("mes_de_vida"),
+        )
+        .join(models.Aluno, models.Aluno.id == models.Cobranca.aluno_id)
+        .cte("linhas")
+    )
+    primeiro_default = (
+        select(
+            linhas.c.aluno_id.label("aluno_id"),
+            func.min(linhas.c.mes_de_vida).label("primeiro"),
+        )
+        .where(linhas.c.status == models.StatusCobranca.INADIMPLENTE)
+        .group_by(linhas.c.aluno_id)
+        .cte("primeiro_default")
+    )
+    base = (
+        select(
+            linhas.c.aluno_id,
+            linhas.c.ano,
+            linhas.c.mes,
+            linhas.c.mes_de_vida,
+        )
+        .where(linhas.c.mes_de_vida >= 0, linhas.c.mes_de_vida <= MESES_VINTAGE)
+        .distinct()
+        .cte("base")
+    )
+    ja_inadimplente = case(
+        (primeiro_default.c.primeiro <= base.c.mes_de_vida, 1), else_=0
+    )
+    resultado = db.execute(
+        select(
+            base.c.ano,
+            base.c.mes,
+            base.c.mes_de_vida,
+            func.count().label("alunos"),
+            func.sum(ja_inadimplente).label("inadimplentes"),
+        )
+        .select_from(base)
+        .outerjoin(primeiro_default, primeiro_default.c.aluno_id == base.c.aluno_id)
+        .group_by(base.c.ano, base.c.mes, base.c.mes_de_vida)
+        .order_by(base.c.ano, base.c.mes, base.c.mes_de_vida)
+    ).all()
+
+    safras = []
+    totais: dict[int, list[int]] = {}
+    for ano, mes, mes_vida, alunos, inadimplentes in resultado:
+        inadimplentes = int(inadimplentes or 0)
+        safras.append(
+            {
+                "safra": f"{int(ano):04d}-{int(mes):02d}",
+                "mes_de_vida": int(mes_vida),
+                "alunos": alunos,
+                "inadimplentes": inadimplentes,
+                "percentual": 100 * inadimplentes / alunos,
+            }
+        )
+        total = totais.setdefault(int(mes_vida), [0, 0])
+        total[0] += alunos
+        total[1] += inadimplentes
+    media = [
+        {
+            "mes_de_vida": mes_vida,
+            "alunos": alunos,
+            "inadimplentes": inadimplentes,
+            "percentual": 100 * inadimplentes / alunos,
+        }
+        for mes_vida, (alunos, inadimplentes) in sorted(totais.items())
+    ]
+    return {"meses": MESES_VINTAGE, "safras": safras, "media": media}
+
+
+def insights_metricas(
+    db: Session, periodo: str | None = None, hoje: date | None = None
+) -> dict:
+    """Resumo analítico da carteira (ver `insights.gerar_insights`).
+
+    `periodo` ("AAAA" ou "AAAA-MM") limita a análise às competências até o fim
+    desse período, como se a carteira terminasse ali.
+    """
+    hoje = hoje or date.today()
+    consulta = (
+        select(
+            models.Aluno.modalidade,
+            models.Cobranca.competencia,
+            models.Cobranca.status,
+            func.coalesce(func.sum(models.Cobranca.valor), 0),
+            func.count(models.Cobranca.id),
+        )
+        .select_from(models.Cobranca)
+        .outerjoin(models.Aluno, models.Aluno.id == models.Cobranca.aluno_id)
+        .group_by(
+            models.Aluno.modalidade, models.Cobranca.competencia, models.Cobranca.status
+        )
+    )
+    if periodo:
+        # "AAAA" vira "AAAA-12": a comparação de texto cobre o ano inteiro.
+        limite = periodo if len(periodo) == 7 else f"{periodo}-12"
+        consulta = consulta.where(models.Cobranca.competencia <= limite)
+    linhas = db.execute(consulta).all()
+    return insights.gerar_insights(
+        [
+            (modalidade, competencia, status.value, float(valor), quantidade)
+            for modalidade, competencia, status, valor, quantidade in linhas
+        ],
+        hoje,
+    )
