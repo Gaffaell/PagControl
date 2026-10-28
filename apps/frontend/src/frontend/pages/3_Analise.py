@@ -161,6 +161,7 @@ else:
 
 
 def normalizar_modalidade(valor: str | None) -> str:
+    valor = str(valor)
     if not valor or not valor.strip():
         return "Não informada"
     return valor.strip().title()
