@@ -133,3 +133,12 @@ class ConfiguracaoRegua(Base):
 
     def lista_dias_cobranca_atraso(self) -> list[int]:
         return [int(d) for d in self.dias_cobranca_atraso.split(",") if d]
+
+class LoginRequisicao(Base):
+    """Modelo para requisição de login."""
+
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome_de_usuario: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    senha_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
