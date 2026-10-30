@@ -21,6 +21,8 @@ def is_authenticated(session) -> bool:
 def login_verificacao(db: Session, data: schemas.LoginRequisicao) -> bool:
     """ Verifica se o usuario e senha estão corretos."""
     user = db.query(models.LoginRequisicao).filter_by(nome_de_usuario=data.nomde_de_usuario).first()
+    if not user:
+        return False
     if user and user.senha_hash == hashlib.sha256(data.senha_hash.encode()).hexdigest():
         session["authenticated"] = True
         session["user"] = user.nome_de_usuario
