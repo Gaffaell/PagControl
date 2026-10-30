@@ -215,3 +215,7 @@ class InsightsMetricas(BaseModel):
     referencia: str | None
     meses_analisados: int
     itens: list[InsightItem]
+
+class LoginRequisicao(BaseModel):
+    nomde_de_usuario: str
+    senha_hash: str
