@@ -742,3 +742,13 @@ def insights_metricas(
         ],
         hoje,
     )
+
+def login_verificacao(db: Session, usuario: str, senha: str) -> bool:
+    """Verifica se o usuário e senha estão corretos."""
+    # Aqui você pode implementar a lógica de verificação de login, por exemplo:
+    # - Consultar uma tabela de usuários no banco de dados
+    # - Comparar a senha fornecida com a senha armazenada (hash)
+    # Para fins de exemplo, vamos supor que temos um usuário "admin" com senha "senha123"
+    if usuario == "admin" and senha == "senha123":
+        return True
+    return False
