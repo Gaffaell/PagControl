@@ -166,19 +166,3 @@ def detalhamento_metricas(
 ):
     """Cobranças mais recentes com o nome do aluno, limitadas a `limite`."""
     return crud.detalhar_cobrancas(db, competencia, limite)
-
-@app.post("/login")
-def login_requisicao(dados: schemas.LoginRequisicao, db: Session = Depends(get_db)):
-    """Verifica se o usuário e senha estão corretos."""
-    if crud.login_verificacao(db, dados):
-        return {"authenticated": True}
-    else:
-        raise HTTPException(401, "Usuário ou senha incorretos")
-
-@app.post("/login/verificacao")
-def login_verificacao(dados: schemas.LoginRequisicao, db: Session = Depends(get_db)):
-    """Verifica se o usuário e senha estão corretos."""
-    if crud.login_verificacao(db, dados):
-        return {"authenticated": True}
-    else:
-        raise HTTPException(401, "Usuário ou senha incorretos")

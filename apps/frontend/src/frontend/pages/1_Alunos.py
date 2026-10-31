@@ -32,7 +32,6 @@ if "authenticated" not in st.session_state or not st.session_state.authenticated
     st.stop()
 
 
-
 LIMITE_PAGAMENTOS = 200
 
 STATUS_LABELS = {
