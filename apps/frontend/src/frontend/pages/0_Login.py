@@ -35,6 +35,7 @@ if submit_button:
     if username == "admin" and password == "admin":
         st.session_state["authenticated"] = True
         st.success("Login bem-sucedido!")
+        st.switch_page("pages/1_Alunos.py")
         st.rerun()
     else:
         st.error("Usuário ou senha incorretos. Tente novamente.")
