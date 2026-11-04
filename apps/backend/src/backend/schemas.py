@@ -7,6 +7,20 @@ from .models import DiaSemana, FormaPagamento, StatusCobranca, Turno
 # Schemas Pydantic: validam o que entra/sai da API, separados dos modelos
 # do banco (app/models.py) para não expor campos internos sem querer.
 
+class AdministradorCreate(BaseModel):
+    nome: str
+    email: str
+    senha: str
+
+
+class AdministradorOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    email: str
+    criado_em: datetime
+
 
 class AlunoCreate(BaseModel):
     nome: str

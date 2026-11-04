@@ -742,3 +742,21 @@ def insights_metricas(
         ],
         hoje,
     )
+
+def criar_administrador(db: Session, dados: schemas.AdministradorCreate) -> models.Administrador:
+    """Cria um novo administrador no sistema.
+
+    Lança ValueError se o email já estiver em uso.
+    """
+    existente = db.scalar(
+        select(models.Administrador).where(
+            models.Administrador.email == dados.email
+        )
+    )
+    if existente:
+        raise ValueError(f"Email {dados.email} já está em uso.")
+    administrador = models.Administrador(**dados.model_dump())
+    db.add(administrador)
+    db.commit()
+    db.refresh(administrador)
+    return administrador

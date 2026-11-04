@@ -27,6 +27,7 @@ from .database import Base
 
 # Ordem respeita a chave estrangeira: alunos antes de cobranças.
 TABELAS = [
+    models.Administrador.__table__,
     models.Aluno.__table__,
     models.Cobranca.__table__,
     models.ConfiguracaoRegua.__table__,
