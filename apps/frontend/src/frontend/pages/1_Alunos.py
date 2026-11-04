@@ -27,6 +27,25 @@ from frontend.ui import (
     sidebar_brand,
 )
 
+apply_theme()
+sidebar_brand()
+
+page_header(
+    "Cadastros",
+    "Gestão de alunos",
+    (
+        "Cadastre alunos e mantenha os dados das matrículas sincronizados com "
+        "a API do PagControl."
+    ),
+)
+
+
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error(
+        "Você não está autenticado. Acesse a página de login para autenticar."
+    )
+    st.stop()
+
 LIMITE_PAGAMENTOS = 200
 
 STATUS_LABELS = {
@@ -126,18 +145,6 @@ st.set_page_config(
     page_icon="👥",
     layout="wide",
     initial_sidebar_state="auto",
-)
-
-apply_theme()
-sidebar_brand()
-
-page_header(
-    "Cadastros",
-    "Gestão de alunos",
-    (
-        "Cadastre alunos e mantenha os dados das matrículas sincronizados com "
-        "a API do PagControl."
-    ),
 )
 
 
