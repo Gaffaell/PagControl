@@ -172,3 +172,11 @@ if salvar_admin:
             st.error(str(exc))
         else:
             st.success("Administrador cadastrado com sucesso!")
+
+st.divider()
+section_title("Sair do sistema")
+
+if st.button("Sair"):
+    st.session_state["authenticated"] = False
+    st.success("Você saiu do sistema.")
+    st.rerun()
