@@ -743,15 +743,16 @@ def insights_metricas(
         hoje,
     )
 
-def criar_administrador(db: Session, dados: schemas.AdministradorCreate) -> models.Administrador:
+
+def criar_administrador(
+    db: Session, dados: schemas.AdministradorCreate
+) -> models.Administrador:
     """Cria um novo administrador no sistema.
 
     Lança ValueError se o email já estiver em uso.
     """
     existente = db.scalar(
-        select(models.Administrador).where(
-            models.Administrador.email == dados.email
-        )
+        select(models.Administrador).where(models.Administrador.email == dados.email)
     )
     if existente:
         raise ValueError(f"Email {dados.email} já está em uso.")
@@ -761,12 +762,13 @@ def criar_administrador(db: Session, dados: schemas.AdministradorCreate) -> mode
     db.refresh(administrador)
     return administrador
 
-def validar_administrador(db: Session, dados: schemas.AdministradorValidate) -> models.Administrador:
+
+def validar_administrador(
+    db: Session, dados: schemas.AdministradorValidate
+) -> models.Administrador:
     """Valida as credenciais de um administrador."""
     administrador = db.scalar(
-        select(models.Administrador).where(
-            models.Administrador.email == dados.email
-        )
+        select(models.Administrador).where(models.Administrador.email == dados.email)
     )
     if not administrador or administrador.senha != dados.senha:
         raise ValueError("Credenciais inválidas.")

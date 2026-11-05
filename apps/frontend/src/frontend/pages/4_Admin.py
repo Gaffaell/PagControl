@@ -3,9 +3,9 @@ from frontend.api.cliente import (
     APIError,
     atualizar_aluno,
     atualizar_configuracao_regua,
+    criar_administrador,
     listar_alunos,
     obter_configuracao_regua,
-    criar_administrador,
 )
 from frontend.ui import (
     api_status,
@@ -35,9 +35,7 @@ page_header(
 )
 
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error(
-        "Você não está autenticado. Acesse a página de login para autenticar."
-    )
+    st.error("Você não está autenticado. Acesse a página de login para autenticar.")
     st.stop()
 
 try:

@@ -51,9 +51,7 @@ page_header(
 )
 
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error(
-        "Você não está autenticado. Acesse a página de login para autenticar."
-    )
+    st.error("Você não está autenticado. Acesse a página de login para autenticar.")
     st.stop()
 
 STATUS_LABELS = {
@@ -99,7 +97,6 @@ def _passo_do_eixo(maximo: float, marcas: int = 5) -> float:
         if bruto <= fator * potencia:
             return fator * potencia
     return 10 * potencia
-
 
 
 if st.sidebar.button("🔄 Atualizar dados", width="stretch"):
