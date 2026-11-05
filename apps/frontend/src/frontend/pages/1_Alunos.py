@@ -40,11 +40,11 @@ page_header(
 )
 
 
-#   if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-#       st.error(
-#           "Você não está autenticado. Acesse a página de login para autenticar."
-#       )
-#       st.stop()
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error(
+        "Você não está autenticado. Acesse a página de login para autenticar."
+    )
+    st.stop()
 
 LIMITE_PAGAMENTOS = 200
 

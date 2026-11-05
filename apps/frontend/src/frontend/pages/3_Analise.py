@@ -29,6 +29,31 @@ from frontend.ui import (
     sidebar_brand,
 )
 
+st.set_page_config(
+    page_title="Análise - PagControl",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
+
+apply_theme()
+sidebar_brand()
+
+page_header(
+    "Análise do negócio",
+    "O que vende e quem paga",
+    (
+        "Escolha o ano (e, se quiser, o mês) para ver quais cursos mais faturam e "
+        "qual perfil de aluno mais arrecada."
+    ),
+)
+
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error(
+        "Você não está autenticado. Acesse a página de login para autenticar."
+    )
+    st.stop()
+
 PALETA = paleta_atual()
 COR_DESTAQUE = PALETA["recebido"]
 COR_NEUTRA = PALETA["previsto"]
@@ -60,24 +85,6 @@ DIAS = {
 }
 ORDEM_DIAS = [*DIAS.values(), NAO_INFORMADO]
 
-st.set_page_config(
-    page_title="Análise - PagControl",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
-apply_theme()
-sidebar_brand()
-
-page_header(
-    "Análise do negócio",
-    "O que vende e quem paga",
-    (
-        "Escolha o ano (e, se quiser, o mês) para ver quais cursos mais faturam e "
-        "qual perfil de aluno mais arrecada."
-    ),
-)
 
 if st.sidebar.button("🔄 Atualizar dados", width="stretch"):
     limpar_cache_metricas()
