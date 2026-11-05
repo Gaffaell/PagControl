@@ -172,3 +172,12 @@ def atualizar_configuracao_regua(dados: dict[str, Any]) -> dict[str, Any]:
 def criar_administrador(dados: dict[str, Any]) -> dict[str, Any]:
     """Cria um novo administrador no sistema."""
     return _request("POST", "/administradores", json=dados)
+
+
+def validar_administrador(dados: dict[str, Any]) -> bool:
+    """Valida as credenciais de um administrador (email e senha). Retorna True se válidar."""
+    try:
+        _request("POST", "/administradores/validar", json=dados)
+        return True
+    except APIError:
+        return False

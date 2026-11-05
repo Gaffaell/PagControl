@@ -22,6 +22,11 @@ class AdministradorOut(BaseModel):
     criado_em: datetime
 
 
+class AdministradorValidate(BaseModel):
+    email: str
+    senha: str
+
+
 class AlunoCreate(BaseModel):
     nome: str
     valor_mensalidade: float

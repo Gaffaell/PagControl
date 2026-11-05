@@ -6,6 +6,10 @@ from frontend.ui import(
     page_header,
 )
 
+from frontend.api.cliente import (
+    validar_administrador,
+)
+
 apply_theme()
 paleta_atual()
 sidebar_brand()
@@ -27,15 +31,28 @@ page_header(
 )
 
 with st.form("login_form", clear_on_submit=False):
-    username = st.text_input("Usuário", placeholder="Dígite o seu usuário")
-    password = st.text_input("Senha", type="password", placeholder="Dígite a sua senha")
+    email = st.text_input("Email", placeholder="Dígite o seu email")
+    senha = st.text_input("Senha", type="password", placeholder="Dígite a sua senha")
     submit_button = st.form_submit_button("Entrar")
-
+    
 if submit_button:
-    if username == "admin" and password == "admin":
+    email_limpo = email.strip()
+    senha_limpo = senha.strip()
+    dados = {
+        "email" : email_limpo,
+        "senha" : senha_limpo
+    }
+    if validar_administrador(dados):
         st.session_state["authenticated"] = True
         st.success("Login bem-sucedido!")
         st.switch_page("pages/1_Alunos.py")
         st.rerun()
     else:
-        st.error("Usuário ou senha incorretos. Tente novamente.")
+        st.error("Email ou senha incorretos. Tente novamente.")
+#   if username == "admin" and password == "admin":
+#       st.session_state["authenticated"] = True
+#       st.success("Login bem-sucedido!")
+#       st.switch_page("pages/1_Alunos.py")
+#       st.rerun()
+#   else:
+#       st.error("Usuário ou senha incorretos. Tente novamente.")

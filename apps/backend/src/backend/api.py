@@ -173,3 +173,11 @@ def criar_administrador(dados: schemas.AdministradorCreate, db: Session = Depend
         return crud.criar_administrador(db, dados)
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
+
+@app.post("/administradores/validar")
+def validar_administrador(dados: schemas.AdministradorValidate, db: Session = Depends(get_db)):
+    """Valida as credenciais de um administrador (email e senha). Retorna 200 se válidas, 401 se inválidas."""
+    if crud.validar_administrador(db, dados):
+        return {"message": "Credenciais válidas"}
+    else:
+        raise HTTPException(401, "Credenciais inválidas")
