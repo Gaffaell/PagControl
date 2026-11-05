@@ -3,6 +3,7 @@ from frontend.api.cliente import (
     APIError,
     atualizar_aluno,
     atualizar_configuracao_regua,
+    criar_administrador,
     listar_alunos,
     obter_configuracao_regua,
 )
@@ -32,6 +33,10 @@ page_header(
         "informações que não fazem parte do cadastro rápido da tela de Alunos."
     ),
 )
+
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("Você não está autenticado. Acesse a página de login para autenticar.")
+    st.stop()
 
 try:
     alunos = listar_alunos(False)
@@ -135,3 +140,41 @@ if salvar_regua:
     else:
         obter_configuracao_regua.clear()
         st.success("Régua de cobrança atualizada com sucesso!")
+
+st.divider()
+section_title("Cadastrar novo administrador")
+
+with st.form("admin_cadastro_form", clear_on_submit=True):
+    nome = st.text_input("Nome")
+    email = st.text_input("Email")
+    senha = st.text_input("Senha", type="password")
+
+    salvar_admin = st.form_submit_button("Cadastrar administrador")
+
+if salvar_admin:
+    if not nome or not email or not senha:
+        st.error("Preencha todos os campos para cadastrar um administrador.")
+    else:
+        nome_limpo = nome.strip()
+        email_limpo = email.strip()
+        senha_limpa = senha.strip()
+        try:
+            criar_administrador(
+                {
+                    "nome": nome_limpo,
+                    "email": email_limpo,
+                    "senha": senha_limpa,
+                }
+            )
+        except APIError as exc:
+            st.error(str(exc))
+        else:
+            st.success("Administrador cadastrado com sucesso!")
+
+st.divider()
+section_title("Sair do sistema")
+
+if st.button("Sair"):
+    st.session_state["authenticated"] = False
+    st.success("Você saiu do sistema.")
+    st.rerun()

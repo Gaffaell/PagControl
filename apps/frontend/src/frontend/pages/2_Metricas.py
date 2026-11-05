@@ -30,6 +30,30 @@ from frontend.ui import (
     sidebar_brand,
 )
 
+st.set_page_config(
+    page_title="Métricas Financeiras - PagControl",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
+
+
+apply_theme()
+sidebar_brand()
+
+page_header(
+    "Desempenho financeiro",
+    "Métricas e inadimplência",
+    (
+        "Indicadores calculados com os dados atuais de alunos e cobranças "
+        "registrados na API do PagControl."
+    ),
+)
+
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("Você não está autenticado. Acesse a página de login para autenticar.")
+    st.stop()
+
 STATUS_LABELS = {
     "pago": "Pagas",
     "pendente": "Pendentes",
@@ -74,25 +98,6 @@ def _passo_do_eixo(maximo: float, marcas: int = 5) -> float:
             return fator * potencia
     return 10 * potencia
 
-
-st.set_page_config(
-    page_title="Métricas Financeiras - PagControl",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="auto",
-)
-
-apply_theme()
-sidebar_brand()
-
-page_header(
-    "Desempenho financeiro",
-    "Métricas e inadimplência",
-    (
-        "Indicadores calculados com os dados atuais de alunos e cobranças "
-        "registrados na API do PagControl."
-    ),
-)
 
 if st.sidebar.button("🔄 Atualizar dados", width="stretch"):
     limpar_cache_metricas()

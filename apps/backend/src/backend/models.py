@@ -135,13 +135,13 @@ class ConfiguracaoRegua(Base):
         return [int(d) for d in self.dias_cobranca_atraso.split(",") if d]
 
 
-class LoginRequisicao(Base):
-    """Modelo para requisição de login."""
+class Administrador(Base):
+    """Usuário administrador do sistema, com acesso à tela de Admin e à API."""
 
-    __tablename__ = "usuarios"
+    __tablename__ = "administradores"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    nome_de_usuario: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False
-    )
-    senha_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    nome: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
+    senha: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

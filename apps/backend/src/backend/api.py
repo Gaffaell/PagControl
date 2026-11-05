@@ -166,3 +166,24 @@ def detalhamento_metricas(
 ):
     """Cobranças mais recentes com o nome do aluno, limitadas a `limite`."""
     return crud.detalhar_cobrancas(db, competencia, limite)
+
+
+@app.post("/administradores", response_model=schemas.AdministradorOut, status_code=201)
+def criar_administrador(
+    dados: schemas.AdministradorCreate, db: Session = Depends(get_db)
+):
+    try:
+        return crud.criar_administrador(db, dados)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/administradores/validar")
+def validar_administrador(
+    dados: schemas.AdministradorValidate, db: Session = Depends(get_db)
+):
+    """Valida as credenciais de um administrador (email e senha). Retorna 200 se válidas, 401 se inválidas."""
+    if crud.validar_administrador(db, dados):
+        return {"message": "Credenciais válidas"}
+    else:
+        raise HTTPException(401, "Credenciais inválidas")

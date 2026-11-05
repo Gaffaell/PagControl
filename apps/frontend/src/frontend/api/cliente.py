@@ -169,11 +169,15 @@ def atualizar_configuracao_regua(dados: dict[str, Any]) -> dict[str, Any]:
     return _request("PATCH", "/configuracao-regua", json=dados)
 
 
-def login_verificacao(data: dict[str, any]) -> bool:
-    """Verifica se o usuario e senha estão corretos."""
-    return _request("POST", "/login", json=data)
+def criar_administrador(dados: dict[str, Any]) -> dict[str, Any]:
+    """Cria um novo administrador no sistema."""
+    return _request("POST", "/administradores", json=dados)
 
 
-def is_authenticated() -> bool:
-    """Verifica se o usuário está autenticado na sessão atual."""
-    return _request("GET", "/login/verificacao")
+def validar_administrador(dados: dict[str, Any]) -> bool:
+    """Valida as credenciais de um administrador (email e senha). Retorna True se válidar."""
+    try:
+        _request("POST", "/administradores/validar", json=dados)
+        return True
+    except APIError:
+        return False
